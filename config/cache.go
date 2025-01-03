@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -27,4 +29,24 @@ func NewCache() Cache {
 	}
 
 	return cache
+}
+
+// NewRedisClient tạo một Redis client mới
+func (c *Cache) NewRedisClient() (*redis.Client, error) {
+	if !c.Enable {
+		return nil, fmt.Errorf("redis is not enabled")
+	}
+
+	options := &redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", c.Host, c.Port),
+		Password: c.Pass,
+		DB:       c.Name,
+	}
+
+	if c.User != "" {
+		options.Username = c.User
+	}
+
+	client := redis.NewClient(options)
+	return client, nil
 }
