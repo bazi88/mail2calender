@@ -16,9 +16,10 @@ import (
 	"testing"
 	"time"
 
+	"mono-golang/internal/utility/csrf"
+
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/alexedwards/argon2id"
-	"github.com/gmhafiz/go8/internal/utility/csrf"
 	"github.com/gmhafiz/scs/v2"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -26,10 +27,10 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gmhafiz/go8/database"
-	"github.com/gmhafiz/go8/ent/gen"
-	"github.com/gmhafiz/go8/internal/middleware"
-	"github.com/gmhafiz/go8/third_party/postgresstore"
+	"mono-golang/database"
+	"mono-golang/ent/gen"
+	"mono-golang/internal/middleware"
+	"mono-golang/third_party/postgresstore"
 )
 
 const (

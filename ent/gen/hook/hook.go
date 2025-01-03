@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gmhafiz/go8/ent/gen"
+	"mono-golang/ent/gen"
 )
 
 // The AuthorFunc type is an adapter to allow the use of ordinary

@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru/v2"
 
-	"github.com/gmhafiz/go8/internal/domain/author"
-	"github.com/gmhafiz/go8/internal/middleware"
+	"mono-golang/internal/domain/author"
+	"mono-golang/internal/middleware"
 )
 
 type AuthorLRU struct {

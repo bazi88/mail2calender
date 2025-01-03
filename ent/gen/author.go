@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/gmhafiz/go8/ent/gen/author"
+	"mono-golang/ent/gen/author"
 )
 
 // Author is the model entity for the Author schema.

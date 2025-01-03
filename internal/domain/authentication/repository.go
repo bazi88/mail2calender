@@ -11,9 +11,9 @@ import (
 	"github.com/alexedwards/argon2id"
 	"github.com/gmhafiz/scs/v2"
 
-	"github.com/gmhafiz/go8/ent/gen"
-	"github.com/gmhafiz/go8/ent/gen/session"
-	"github.com/gmhafiz/go8/ent/gen/user"
+	"mono-golang/ent/gen"
+	"mono-golang/ent/gen/session"
+	"mono-golang/ent/gen/user"
 )
 
 type repo struct {

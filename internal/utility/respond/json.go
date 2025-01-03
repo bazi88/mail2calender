@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gmhafiz/go8/internal/utility/message"
+	"mono-golang/internal/utility/message"
 )
 
 type Standard struct {

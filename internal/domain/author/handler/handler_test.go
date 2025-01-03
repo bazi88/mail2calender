@@ -17,11 +17,11 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gmhafiz/go8/internal/domain/author"
-	"github.com/gmhafiz/go8/internal/domain/author/usecase"
-	"github.com/gmhafiz/go8/internal/domain/book"
-	"github.com/gmhafiz/go8/internal/utility/message"
-	"github.com/gmhafiz/go8/internal/utility/respond"
+	"mono-golang/internal/domain/author"
+	"mono-golang/internal/domain/author/usecase"
+	"mono-golang/internal/domain/book"
+	"mono-golang/internal/utility/message"
+	"mono-golang/internal/utility/respond"
 )
 
 var (

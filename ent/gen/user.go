@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/gmhafiz/go8/ent/gen/user"
+	"mono-golang/ent/gen/user"
 )
 
 // User is the model entity for the User schema.

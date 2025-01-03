@@ -5,7 +5,7 @@ package repository
 
 import (
 	"context"
-	"github.com/gmhafiz/go8/internal/domain/author"
+	"mono-golang/internal/domain/author"
 )
 
 // AuthorRedisServiceMock is a mock implementation of AuthorRedisService.

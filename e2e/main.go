@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gmhafiz/go8/config"
-	"github.com/gmhafiz/go8/internal/domain/book"
+	"mono-golang/config"
+	"mono-golang/internal/domain/book"
 )
 
 // Version is injected using ldflags during build time

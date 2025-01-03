@@ -11,17 +11,18 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/gmhafiz/go8/ent/gen/runtime"
+	_ "mono-golang/ent/gen/runtime"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gmhafiz/go8/database"
-	"github.com/gmhafiz/go8/internal/domain/book"
-	"github.com/gmhafiz/go8/internal/utility/filter"
-	"github.com/gmhafiz/go8/internal/utility/message"
+	"mono-golang/database"
+	"mono-golang/internal/domain/book"
+	"mono-golang/internal/utility/filter"
+	"mono-golang/internal/utility/message"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/gmhafiz/go8/ent/gen/predicate"
+	"mono-golang/ent/gen/predicate"
 )
 
 // ID filters vertices based on their ID field.
