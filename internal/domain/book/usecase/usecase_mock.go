@@ -5,7 +5,7 @@ package usecase
 
 import (
 	"context"
-	"github.com/gmhafiz/go8/internal/domain/book"
+	"mono-golang/internal/domain/book"
 )
 
 // BookMock is a mock implementation of Book.

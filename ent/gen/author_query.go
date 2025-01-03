@@ -12,9 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/gmhafiz/go8/ent/gen/author"
-	"github.com/gmhafiz/go8/ent/gen/book"
-	"github.com/gmhafiz/go8/ent/gen/predicate"
+	"mono-golang/ent/gen/author"
+	"mono-golang/ent/gen/book"
+	"mono-golang/ent/gen/predicate"
 )
 
 // AuthorQuery is the builder for querying Author entities.

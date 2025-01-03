@@ -10,9 +10,9 @@ import (
 	"go.nhat.io/otelsql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 
-	"github.com/gmhafiz/go8/config"
-	_ "github.com/gmhafiz/go8/ent/gen/runtime"
-	"github.com/gmhafiz/go8/internal/utility/database"
+	"mono-golang/config"
+	_ "mono-golang/ent/gen/runtime"
+	"mono-golang/internal/utility/database"
 )
 
 func NewSqlx(cfg config.Database) *sqlx.DB {

@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/gmhafiz/go8/config"
-	"github.com/gmhafiz/go8/database"
-	db "github.com/gmhafiz/go8/third_party/database"
+	"mono-golang/config"
+	"mono-golang/database"
+	db "mono-golang/third_party/database"
 )
 
 // Version is injected using ldflags during build time

@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/gmhafiz/go8/ent/gen/predicate"
-	"github.com/gmhafiz/go8/ent/gen/user"
+	"mono-golang/ent/gen/predicate"
+	"mono-golang/ent/gen/user"
 )
 
 // UserDelete is the builder for deleting a User entity.

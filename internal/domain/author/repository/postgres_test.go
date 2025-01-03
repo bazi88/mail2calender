@@ -9,19 +9,20 @@ import (
 	"testing"
 	"time"
 
+	_ "mono-golang/ent/gen/runtime"
+
 	entsql "entgo.io/ent/dialect/sql"
-	_ "github.com/gmhafiz/go8/ent/gen/runtime"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gmhafiz/go8/database"
-	"github.com/gmhafiz/go8/ent/gen"
-	"github.com/gmhafiz/go8/internal/domain/author"
-	"github.com/gmhafiz/go8/internal/domain/book"
-	"github.com/gmhafiz/go8/internal/utility/filter"
-	parseTime "github.com/gmhafiz/go8/internal/utility/time"
+	"mono-golang/database"
+	"mono-golang/ent/gen"
+	"mono-golang/internal/domain/author"
+	"mono-golang/internal/domain/book"
+	"mono-golang/internal/utility/filter"
+	parseTime "mono-golang/internal/utility/time"
 )
 
 const (

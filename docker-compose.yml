@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: go8_postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=go8_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: go8_redis
+    ports:
+      - "6379:6379"
 
   server:
     image: "go8/server"
@@ -11,10 +28,17 @@ services:
       - API_HOST=0.0.0.0
       - DB_HOST=postgres
       - DB_PORT=5432
-      - OTEL_OTLP_ENDPOINT=otel-collector:4317
-      - REDIS_HOST=valkey
+      - REDIS_HOST=redis
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - ${API_PORT}:${API_PORT}
+    volumes:
+      - ./.env:/go/src/app/.env
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:

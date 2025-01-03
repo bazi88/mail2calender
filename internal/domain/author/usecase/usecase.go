@@ -6,9 +6,9 @@ import (
 
 	"go.opentelemetry.io/otel"
 
-	"github.com/gmhafiz/go8/config"
-	"github.com/gmhafiz/go8/internal/domain/author"
-	"github.com/gmhafiz/go8/internal/domain/author/repository"
+	"mono-golang/config"
+	"mono-golang/internal/domain/author"
+	"mono-golang/internal/domain/author/repository"
 )
 
 type AuthorUseCase struct {

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gmhafiz/go8/config"
-	"github.com/gmhafiz/go8/database"
-	db "github.com/gmhafiz/go8/third_party/database"
+	"mono-golang/config"
+	"mono-golang/database"
+	db "mono-golang/third_party/database"
 )
 
 func main() {

@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/gmhafiz/go8/ent/gen/book"
-	"github.com/gmhafiz/go8/ent/gen/predicate"
+	"mono-golang/ent/gen/book"
+	"mono-golang/ent/gen/predicate"
 )
 
 // BookDelete is the builder for deleting a Book entity.

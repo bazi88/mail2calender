@@ -1599,7 +1599,7 @@ cd internal/domain/author/handler
 go test -run="TestHandler_Create/simple"
 
 PASS
-ok      github.com/gmhafiz/go8/internal/domain/author/handler   0.010s
+ok      mono-golang/internal/domain/author/handler   0.010s
 ```
 
 There are a lot of things going on in this unit test. It is very verbose, but it
@@ -1759,7 +1759,7 @@ cd internal/domain/author/usecase
 go test -run="TestAuthorUseCase_Create/simple"
 
 PASS
-ok      github.com/gmhafiz/go8/internal/domain/author/usecase   0.004s
+ok      mono-golang/internal/domain/author/usecase   0.004s
 ```
 
 ### Repository
@@ -1924,7 +1924,7 @@ cd internal/domain/author/repository/database
 go test -run="TestAuthorRepository_Create/normal"
 
 PASS
-ok      github.com/gmhafiz/go8/internal/domain/author/repository/database       2.320s
+ok      mono-golang/internal/domain/author/repository/database       2.320s
 
 ```
 

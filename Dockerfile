@@ -8,6 +8,7 @@ COPY go.sum ./
 RUN go mod download
 
 COPY . ./
+COPY .env ./
 
 ENV CGO_ENABLED=0
 
@@ -19,6 +20,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 LABEL com.example.maintainers="User <author@example.com>"
 
 COPY --from=src /go/src/app/server /usr/bin/local/server
+COPY --from=src /go/src/app/.env /usr/bin/local/.env
 
 EXPOSE 3080
 

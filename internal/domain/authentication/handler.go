@@ -8,10 +8,10 @@ import (
 	"github.com/alexedwards/argon2id"
 	"github.com/gmhafiz/scs/v2"
 
-	"github.com/gmhafiz/go8/internal/middleware"
-	"github.com/gmhafiz/go8/internal/utility/param"
-	"github.com/gmhafiz/go8/internal/utility/request"
-	"github.com/gmhafiz/go8/internal/utility/respond"
+	"mono-golang/internal/middleware"
+	"mono-golang/internal/utility/param"
+	"mono-golang/internal/utility/request"
+	"mono-golang/internal/utility/respond"
 )
 
 const (

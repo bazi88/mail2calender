@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/gmhafiz/go8/ent/gen/book"
+	"mono-golang/ent/gen/book"
 )
 
 // Book is the model entity for the Book schema.

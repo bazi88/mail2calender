@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/gmhafiz/go8/ent/gen/author"
-	"github.com/gmhafiz/go8/ent/gen/predicate"
+	"mono-golang/ent/gen/author"
+	"mono-golang/ent/gen/predicate"
 )
 
 // AuthorDelete is the builder for deleting a Author entity.

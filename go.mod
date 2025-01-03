@@ -1,4 +1,4 @@
-module github.com/gmhafiz/go8
+module mono-golang
 
 go 1.23.0
 
