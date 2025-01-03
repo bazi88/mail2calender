@@ -961,6 +961,154 @@ func TestHandler_Csrf_Valid_And_Delete_TokenIntegration(t *testing.T) {
 	}
 }
 
+func TestHandler_LoginWithInvalidPasswordIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	type args struct {
+		*LoginRequest
+	}
+	type want struct {
+		error
+		status int
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "invalid password",
+			args: args{
+				LoginRequest: &LoginRequest{
+					Email:    "email@example.com",
+					Password: "wrongPassword",
+				},
+			},
+			want: want{
+				error:  nil,
+				status: http.StatusUnauthorized,
+			},
+		},
+		{
+			name: "empty password",
+			args: args{
+				LoginRequest: &LoginRequest{
+					Email:    "email@example.com",
+					Password: "",
+				},
+			},
+			want: want{
+				error:  ErrPasswordLength,
+				status: http.StatusBadRequest,
+			},
+		},
+	}
+
+	client := dbClient()
+	session := newSession(migrator.DB, 1*time.Hour)
+	repo := NewRepo(client, migrator.DB, session)
+
+	hashedPassword, err := argon2id.CreateHash("correctPassword", argon2id.DefaultParams)
+	assert.Nil(t, err)
+
+	_, err = repo.db.ExecContext(context.Background(), `
+		INSERT INTO users (email, password) VALUES ($1, $2)
+		ON CONFLICT (email) DO NOTHING 
+		`, "email@example.com", hashedPassword)
+	assert.Nil(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			var err error
+			if tt.args.LoginRequest != nil {
+				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
+			}
+			assert.Nil(t, err)
+
+			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
+			ww := httptest.NewRecorder()
+
+			router := chi.NewRouter()
+			router.Use(middleware.LoadAndSave(session))
+
+			RegisterHTTPEndPoints(router, session, repo)
+			router.ServeHTTP(ww, rr)
+
+			assert.Equal(t, tt.want.status, ww.Code)
+
+			if tt.want.error != nil {
+				b, err := io.ReadAll(ww.Body)
+				assert.Nil(t, err)
+
+				errStruct := struct {
+					Message string `json:"message"`
+				}{}
+				err = json.Unmarshal(b, &errStruct)
+				assert.Nil(t, err)
+				assert.Equal(t, tt.want.error.Error(), errStruct.Message)
+			}
+		})
+	}
+}
+
+func TestHandler_SessionExpirationIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	client := dbClient()
+	// Set a very short session duration for testing
+	session := newSession(migrator.DB, 1*time.Second)
+	repo := NewRepo(client, migrator.DB, session)
+
+	hashedPassword, err := argon2id.CreateHash("testPassword", argon2id.DefaultParams)
+	assert.Nil(t, err)
+
+	_, err = repo.db.ExecContext(context.Background(), `
+		INSERT INTO users (email, password) VALUES ($1, $2)
+		ON CONFLICT (email) DO NOTHING 
+		`, "session@test.com", hashedPassword)
+	assert.Nil(t, err)
+
+	// First login to get session token
+	loginReq := &LoginRequest{
+		Email:    "session@test.com",
+		Password: "testPassword",
+	}
+	buf := new(bytes.Buffer)
+	err = json.NewEncoder(buf).Encode(loginReq)
+	assert.Nil(t, err)
+
+	rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", buf)
+	ww := httptest.NewRecorder()
+
+	router := chi.NewRouter()
+	router.Use(middleware.LoadAndSave(session))
+	RegisterHTTPEndPoints(router, session, repo)
+	router.ServeHTTP(ww, rr)
+
+	assert.Equal(t, http.StatusOK, ww.Code)
+	token, err := extractToken(ww.Header().Get("Set-Cookie"))
+	assert.Nil(t, err)
+
+	// Wait for session to expire
+	time.Sleep(2 * time.Second)
+
+	// Try to access restricted endpoint with expired session
+	rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted", nil)
+	ww = httptest.NewRecorder()
+	rr.AddCookie(&http.Cookie{
+		Name:  sessionName,
+		Value: token,
+	})
+
+	router.ServeHTTP(ww, rr)
+	assert.Equal(t, http.StatusUnauthorized, ww.Code)
+}
+
 func extractToken(cookie string) (string, error) {
 	parts := strings.Split(cookie, ";")
 	if len(parts) == 0 {
