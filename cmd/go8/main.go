@@ -1,6 +1,8 @@
 package main
 
 import (
+	"mono-golang/internal/config"
+	"mono-golang/internal/infrastructure/logger"
 	"mono-golang/internal/server"
 )
 
@@ -16,6 +18,14 @@ var Version = "v0.1.0"
 // @host localhost:3080
 // @BasePath /
 func main() {
+	// Load config
+	cfg := config.Load()
+
+	// Initialize logger
+	logger.SetLevel(cfg.Logger.Level)
+	log := logger.GetLogger()
+	log.Info("Starting application...")
+
 	s := server.New(server.WithVersion(Version))
 	s.Init()
 	s.Run()
