@@ -4,12 +4,12 @@ package gen
 
 import (
 	"context"
+	"mono-golang/ent/gen/book"
+	"mono-golang/ent/gen/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/book"
-	"mono-golang/ent/gen/predicate"
 )
 
 // BookDelete is the builder for deleting a Book entity.

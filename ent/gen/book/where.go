@@ -3,11 +3,11 @@
 package book
 
 import (
+	"mono-golang/ent/gen/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"mono-golang/ent/gen/predicate"
 )
 
 // ID filters vertices based on their ID field.

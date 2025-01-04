@@ -4,12 +4,12 @@ package gen
 
 import (
 	"fmt"
+	"mono-golang/ent/gen/book"
 	"strings"
 	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"mono-golang/ent/gen/book"
 )
 
 // Book is the model entity for the Book schema.

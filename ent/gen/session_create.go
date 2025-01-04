@@ -6,11 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mono-golang/ent/gen/session"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/session"
 )
 
 // SessionCreate is the builder for creating a Session entity.

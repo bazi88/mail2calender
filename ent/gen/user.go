@@ -4,12 +4,12 @@ package gen
 
 import (
 	"fmt"
+	"mono-golang/ent/gen/user"
 	"strings"
 	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"mono-golang/ent/gen/user"
 )
 
 // User is the model entity for the User schema.

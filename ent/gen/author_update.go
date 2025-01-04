@@ -6,14 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mono-golang/ent/gen/author"
+	"mono-golang/ent/gen/book"
+	"mono-golang/ent/gen/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/author"
-	"mono-golang/ent/gen/book"
-	"mono-golang/ent/gen/predicate"
 )
 
 // AuthorUpdate is the builder for updating Author entities.

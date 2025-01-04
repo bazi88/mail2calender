@@ -4,12 +4,12 @@ package gen
 
 import (
 	"context"
+	"mono-golang/ent/gen/predicate"
+	"mono-golang/ent/gen/user"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/predicate"
-	"mono-golang/ent/gen/user"
 )
 
 // UserDelete is the builder for deleting a User entity.

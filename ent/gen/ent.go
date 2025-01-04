@@ -6,16 +6,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mono-golang/ent/gen/author"
+	"mono-golang/ent/gen/book"
+	"mono-golang/ent/gen/session"
+	"mono-golang/ent/gen/user"
 	"reflect"
 	"sync"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"mono-golang/ent/gen/author"
-	"mono-golang/ent/gen/book"
-	"mono-golang/ent/gen/session"
-	"mono-golang/ent/gen/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -72,7 +72,7 @@ var (
 	columnCheck sql.ColumnCheck
 )
 
-// checkColumn checks if the column exists in the given table.
+// columnChecker checks if the column exists in the given table.
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{

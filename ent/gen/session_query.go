@@ -6,13 +6,12 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"mono-golang/ent/gen/predicate"
+	"mono-golang/ent/gen/session"
 
-	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/predicate"
-	"mono-golang/ent/gen/session"
 )
 
 // SessionQuery is the builder for querying Session entities.
@@ -61,7 +60,7 @@ func (sq *SessionQuery) Order(o ...session.OrderOption) *SessionQuery {
 // First returns the first Session entity from the query.
 // Returns a *NotFoundError when no Session was found.
 func (sq *SessionQuery) First(ctx context.Context) (*Session, error) {
-	nodes, err := sq.Limit(1).All(setContextOp(ctx, sq.ctx, ent.OpQueryFirst))
+	nodes, err := sq.Limit(1).All(setContextOp(ctx, sq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +83,7 @@ func (sq *SessionQuery) FirstX(ctx context.Context) *Session {
 // Returns a *NotFoundError when no Session ID was found.
 func (sq *SessionQuery) FirstID(ctx context.Context) (id string, err error) {
 	var ids []string
-	if ids, err = sq.Limit(1).IDs(setContextOp(ctx, sq.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = sq.Limit(1).IDs(setContextOp(ctx, sq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -107,7 +106,7 @@ func (sq *SessionQuery) FirstIDX(ctx context.Context) string {
 // Returns a *NotSingularError when more than one Session entity is found.
 // Returns a *NotFoundError when no Session entities are found.
 func (sq *SessionQuery) Only(ctx context.Context) (*Session, error) {
-	nodes, err := sq.Limit(2).All(setContextOp(ctx, sq.ctx, ent.OpQueryOnly))
+	nodes, err := sq.Limit(2).All(setContextOp(ctx, sq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +134,7 @@ func (sq *SessionQuery) OnlyX(ctx context.Context) *Session {
 // Returns a *NotFoundError when no entities are found.
 func (sq *SessionQuery) OnlyID(ctx context.Context) (id string, err error) {
 	var ids []string
-	if ids, err = sq.Limit(2).IDs(setContextOp(ctx, sq.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = sq.Limit(2).IDs(setContextOp(ctx, sq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -160,7 +159,7 @@ func (sq *SessionQuery) OnlyIDX(ctx context.Context) string {
 
 // All executes the query and returns a list of Sessions.
 func (sq *SessionQuery) All(ctx context.Context) ([]*Session, error) {
-	ctx = setContextOp(ctx, sq.ctx, ent.OpQueryAll)
+	ctx = setContextOp(ctx, sq.ctx, "All")
 	if err := sq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -182,7 +181,7 @@ func (sq *SessionQuery) IDs(ctx context.Context) (ids []string, err error) {
 	if sq.ctx.Unique == nil && sq.path != nil {
 		sq.Unique(true)
 	}
-	ctx = setContextOp(ctx, sq.ctx, ent.OpQueryIDs)
+	ctx = setContextOp(ctx, sq.ctx, "IDs")
 	if err = sq.Select(session.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -200,7 +199,7 @@ func (sq *SessionQuery) IDsX(ctx context.Context) []string {
 
 // Count returns the count of the given query.
 func (sq *SessionQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, sq.ctx, ent.OpQueryCount)
+	ctx = setContextOp(ctx, sq.ctx, "Count")
 	if err := sq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -218,7 +217,7 @@ func (sq *SessionQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (sq *SessionQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, sq.ctx, ent.OpQueryExist)
+	ctx = setContextOp(ctx, sq.ctx, "Exist")
 	switch _, err := sq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -450,7 +449,7 @@ func (sgb *SessionGroupBy) Aggregate(fns ...AggregateFunc) *SessionGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (sgb *SessionGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, sgb.build.ctx, ent.OpQueryGroupBy)
+	ctx = setContextOp(ctx, sgb.build.ctx, "GroupBy")
 	if err := sgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -498,7 +497,7 @@ func (ss *SessionSelect) Aggregate(fns ...AggregateFunc) *SessionSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (ss *SessionSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, ss.ctx, ent.OpQuerySelect)
+	ctx = setContextOp(ctx, ss.ctx, "Select")
 	if err := ss.prepareQuery(ctx); err != nil {
 		return err
 	}
