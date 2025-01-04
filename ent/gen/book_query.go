@@ -7,14 +7,13 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math"
-
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/schema/field"
 	"mono-golang/ent/gen/author"
 	"mono-golang/ent/gen/book"
 	"mono-golang/ent/gen/predicate"
+
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 )
 
 // BookQuery is the builder for querying Book entities.
@@ -86,7 +85,7 @@ func (bq *BookQuery) QueryAuthors() *AuthorQuery {
 // First returns the first Book entity from the query.
 // Returns a *NotFoundError when no Book was found.
 func (bq *BookQuery) First(ctx context.Context) (*Book, error) {
-	nodes, err := bq.Limit(1).All(setContextOp(ctx, bq.ctx, ent.OpQueryFirst))
+	nodes, err := bq.Limit(1).All(setContextOp(ctx, bq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +108,7 @@ func (bq *BookQuery) FirstX(ctx context.Context) *Book {
 // Returns a *NotFoundError when no Book ID was found.
 func (bq *BookQuery) FirstID(ctx context.Context) (id uint64, err error) {
 	var ids []uint64
-	if ids, err = bq.Limit(1).IDs(setContextOp(ctx, bq.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = bq.Limit(1).IDs(setContextOp(ctx, bq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -132,7 +131,7 @@ func (bq *BookQuery) FirstIDX(ctx context.Context) uint64 {
 // Returns a *NotSingularError when more than one Book entity is found.
 // Returns a *NotFoundError when no Book entities are found.
 func (bq *BookQuery) Only(ctx context.Context) (*Book, error) {
-	nodes, err := bq.Limit(2).All(setContextOp(ctx, bq.ctx, ent.OpQueryOnly))
+	nodes, err := bq.Limit(2).All(setContextOp(ctx, bq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +159,7 @@ func (bq *BookQuery) OnlyX(ctx context.Context) *Book {
 // Returns a *NotFoundError when no entities are found.
 func (bq *BookQuery) OnlyID(ctx context.Context) (id uint64, err error) {
 	var ids []uint64
-	if ids, err = bq.Limit(2).IDs(setContextOp(ctx, bq.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = bq.Limit(2).IDs(setContextOp(ctx, bq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -185,7 +184,7 @@ func (bq *BookQuery) OnlyIDX(ctx context.Context) uint64 {
 
 // All executes the query and returns a list of Books.
 func (bq *BookQuery) All(ctx context.Context) ([]*Book, error) {
-	ctx = setContextOp(ctx, bq.ctx, ent.OpQueryAll)
+	ctx = setContextOp(ctx, bq.ctx, "All")
 	if err := bq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -207,7 +206,7 @@ func (bq *BookQuery) IDs(ctx context.Context) (ids []uint64, err error) {
 	if bq.ctx.Unique == nil && bq.path != nil {
 		bq.Unique(true)
 	}
-	ctx = setContextOp(ctx, bq.ctx, ent.OpQueryIDs)
+	ctx = setContextOp(ctx, bq.ctx, "IDs")
 	if err = bq.Select(book.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -225,7 +224,7 @@ func (bq *BookQuery) IDsX(ctx context.Context) []uint64 {
 
 // Count returns the count of the given query.
 func (bq *BookQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, bq.ctx, ent.OpQueryCount)
+	ctx = setContextOp(ctx, bq.ctx, "Count")
 	if err := bq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -243,7 +242,7 @@ func (bq *BookQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (bq *BookQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, bq.ctx, ent.OpQueryExist)
+	ctx = setContextOp(ctx, bq.ctx, "Exist")
 	switch _, err := bq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -560,7 +559,7 @@ func (bgb *BookGroupBy) Aggregate(fns ...AggregateFunc) *BookGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (bgb *BookGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, bgb.build.ctx, ent.OpQueryGroupBy)
+	ctx = setContextOp(ctx, bgb.build.ctx, "GroupBy")
 	if err := bgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -608,7 +607,7 @@ func (bs *BookSelect) Aggregate(fns ...AggregateFunc) *BookSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (bs *BookSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, bs.ctx, ent.OpQuerySelect)
+	ctx = setContextOp(ctx, bs.ctx, "Select")
 	if err := bs.prepareQuery(ctx); err != nil {
 		return err
 	}

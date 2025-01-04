@@ -6,13 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mono-golang/ent/gen/predicate"
+	"mono-golang/ent/gen/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/predicate"
-	"mono-golang/ent/gen/user"
 )
 
 // UserUpdate is the builder for updating User entities.

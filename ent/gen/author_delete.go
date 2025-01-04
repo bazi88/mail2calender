@@ -4,12 +4,12 @@ package gen
 
 import (
 	"context"
+	"mono-golang/ent/gen/author"
+	"mono-golang/ent/gen/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"mono-golang/ent/gen/author"
-	"mono-golang/ent/gen/predicate"
 )
 
 // AuthorDelete is the builder for deleting a Author entity.

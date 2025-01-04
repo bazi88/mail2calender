@@ -3,10 +3,10 @@
 package session
 
 import (
+	"mono-golang/ent/gen/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"mono-golang/ent/gen/predicate"
 )
 
 // ID filters vertices based on their ID field.

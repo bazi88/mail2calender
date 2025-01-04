@@ -5,7 +5,6 @@ package hook
 import (
 	"context"
 	"fmt"
-
 	"mono-golang/ent/gen"
 )
 

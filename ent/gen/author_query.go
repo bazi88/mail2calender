@@ -7,14 +7,13 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math"
-
-	"entgo.io/ent"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/schema/field"
 	"mono-golang/ent/gen/author"
 	"mono-golang/ent/gen/book"
 	"mono-golang/ent/gen/predicate"
+
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/schema/field"
 )
 
 // AuthorQuery is the builder for querying Author entities.
@@ -86,7 +85,7 @@ func (aq *AuthorQuery) QueryBooks() *BookQuery {
 // First returns the first Author entity from the query.
 // Returns a *NotFoundError when no Author was found.
 func (aq *AuthorQuery) First(ctx context.Context) (*Author, error) {
-	nodes, err := aq.Limit(1).All(setContextOp(ctx, aq.ctx, ent.OpQueryFirst))
+	nodes, err := aq.Limit(1).All(setContextOp(ctx, aq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +108,7 @@ func (aq *AuthorQuery) FirstX(ctx context.Context) *Author {
 // Returns a *NotFoundError when no Author ID was found.
 func (aq *AuthorQuery) FirstID(ctx context.Context) (id uint64, err error) {
 	var ids []uint64
-	if ids, err = aq.Limit(1).IDs(setContextOp(ctx, aq.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = aq.Limit(1).IDs(setContextOp(ctx, aq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -132,7 +131,7 @@ func (aq *AuthorQuery) FirstIDX(ctx context.Context) uint64 {
 // Returns a *NotSingularError when more than one Author entity is found.
 // Returns a *NotFoundError when no Author entities are found.
 func (aq *AuthorQuery) Only(ctx context.Context) (*Author, error) {
-	nodes, err := aq.Limit(2).All(setContextOp(ctx, aq.ctx, ent.OpQueryOnly))
+	nodes, err := aq.Limit(2).All(setContextOp(ctx, aq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +159,7 @@ func (aq *AuthorQuery) OnlyX(ctx context.Context) *Author {
 // Returns a *NotFoundError when no entities are found.
 func (aq *AuthorQuery) OnlyID(ctx context.Context) (id uint64, err error) {
 	var ids []uint64
-	if ids, err = aq.Limit(2).IDs(setContextOp(ctx, aq.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = aq.Limit(2).IDs(setContextOp(ctx, aq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -185,7 +184,7 @@ func (aq *AuthorQuery) OnlyIDX(ctx context.Context) uint64 {
 
 // All executes the query and returns a list of Authors.
 func (aq *AuthorQuery) All(ctx context.Context) ([]*Author, error) {
-	ctx = setContextOp(ctx, aq.ctx, ent.OpQueryAll)
+	ctx = setContextOp(ctx, aq.ctx, "All")
 	if err := aq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -207,7 +206,7 @@ func (aq *AuthorQuery) IDs(ctx context.Context) (ids []uint64, err error) {
 	if aq.ctx.Unique == nil && aq.path != nil {
 		aq.Unique(true)
 	}
-	ctx = setContextOp(ctx, aq.ctx, ent.OpQueryIDs)
+	ctx = setContextOp(ctx, aq.ctx, "IDs")
 	if err = aq.Select(author.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -225,7 +224,7 @@ func (aq *AuthorQuery) IDsX(ctx context.Context) []uint64 {
 
 // Count returns the count of the given query.
 func (aq *AuthorQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, aq.ctx, ent.OpQueryCount)
+	ctx = setContextOp(ctx, aq.ctx, "Count")
 	if err := aq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -243,7 +242,7 @@ func (aq *AuthorQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (aq *AuthorQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, aq.ctx, ent.OpQueryExist)
+	ctx = setContextOp(ctx, aq.ctx, "Exist")
 	switch _, err := aq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -560,7 +559,7 @@ func (agb *AuthorGroupBy) Aggregate(fns ...AggregateFunc) *AuthorGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (agb *AuthorGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, agb.build.ctx, ent.OpQueryGroupBy)
+	ctx = setContextOp(ctx, agb.build.ctx, "GroupBy")
 	if err := agb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -608,7 +607,7 @@ func (as *AuthorSelect) Aggregate(fns ...AggregateFunc) *AuthorSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (as *AuthorSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, as.ctx, ent.OpQuerySelect)
+	ctx = setContextOp(ctx, as.ctx, "Select")
 	if err := as.prepareQuery(ctx); err != nil {
 		return err
 	}

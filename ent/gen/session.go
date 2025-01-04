@@ -4,12 +4,12 @@ package gen
 
 import (
 	"fmt"
+	"mono-golang/ent/gen/session"
 	"strings"
 	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"mono-golang/ent/gen/session"
 )
 
 // Session is the model entity for the Session schema.

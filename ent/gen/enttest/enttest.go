@@ -4,13 +4,13 @@ package enttest
 
 import (
 	"context"
-
 	"mono-golang/ent/gen"
 	// required by schema hooks.
 	_ "mono-golang/ent/gen/runtime"
 
-	"entgo.io/ent/dialect/sql/schema"
 	"mono-golang/ent/gen/migrate"
+
+	"entgo.io/ent/dialect/sql/schema"
 )
 
 type (
