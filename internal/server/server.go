@@ -40,6 +40,7 @@ import (
 	"github.com/gmhafiz/go8/database"
 	"github.com/gmhafiz/go8/logger"
 	"github.com/gmhafiz/go8/third_party/otlp"
+
 	//_ "github.com/gmhafiz/go8/docs"
 	"github.com/gmhafiz/go8/ent/gen"
 	"github.com/gmhafiz/go8/internal/middleware"
@@ -230,6 +231,11 @@ func (s *Server) setGlobalMiddleware() {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "endpoint not found"}`))
 	})
+
+	// Apply security headers first
+	s.router.Use(middleware.SecurityHeaders)
+
+	// Then apply other middleware
 	s.router.Use(s.cors.Handler)
 	s.router.Use(middleware.Otlp(s.cfg.OpenTelemetry.Enable))
 	s.router.Use(middleware.Json)
