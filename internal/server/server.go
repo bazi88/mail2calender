@@ -231,6 +231,11 @@ func (s *Server) setGlobalMiddleware() {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "endpoint not found"}`))
 	})
+
+	// Apply security headers first
+	s.router.Use(middleware.SecurityHeaders)
+
+	// Then apply other middleware
 	s.router.Use(s.cors.Handler)
 	s.router.Use(middleware.Otlp(s.cfg.OpenTelemetry.Enable))
 	s.router.Use(middleware.Json)
