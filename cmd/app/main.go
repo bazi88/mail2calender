@@ -25,21 +25,21 @@ import (
 	"syscall"
 	"time"
 
-	_ "mono-golang/docs"
+	_ "github.com/bazi88/mono-golang/docs"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	"mono-golang/internal/config"
-	"mono-golang/internal/delivery/http/middleware"
-	"mono-golang/internal/domain/auth"
-	"mono-golang/internal/domain/author"
-	"mono-golang/internal/domain/book"
-	"mono-golang/internal/infrastructure/cache"
-	"mono-golang/internal/infrastructure/database"
-	"mono-golang/internal/infrastructure/logger"
-	"mono-golang/internal/infrastructure/metrics"
+	"github.com/bazi88/mono-golang/internal/config"
+	"github.com/bazi88/mono-golang/internal/delivery/http/middleware"
+	"github.com/bazi88/mono-golang/internal/domain/auth"
+	"github.com/bazi88/mono-golang/internal/domain/author"
+	"github.com/bazi88/mono-golang/internal/domain/book"
+	"github.com/bazi88/mono-golang/internal/infrastructure/cache"
+	"github.com/bazi88/mono-golang/internal/infrastructure/database"
+	"github.com/bazi88/mono-golang/internal/infrastructure/logger"
+	"github.com/bazi88/mono-golang/internal/infrastructure/metrics"
 )
 
 // @Summary Health check

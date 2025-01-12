@@ -1,4 +1,4 @@
-module mono-golang
+module github.com/bazi88/mono-golang
 
 go 1.23.0
 
