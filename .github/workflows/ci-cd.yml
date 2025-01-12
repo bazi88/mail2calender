@@ -28,6 +28,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       
+      - name: Cache golangci-lint
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/golangci-lint
+          key: ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-
+            ${{ runner.os }}-golangci-
+      
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -35,11 +44,6 @@ jobs:
           args: --timeout=5m
           working-directory: ./go8
           
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/golangci-lint
-          key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go8/.golangci.yml') }}
-
   test:
     name: Run Tests
     runs-on: ubuntu-latest
