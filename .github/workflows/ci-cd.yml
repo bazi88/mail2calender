@@ -89,11 +89,13 @@ jobs:
           
       - name: Setup and Download Dependencies
         run: |
+          echo "Current directory:"
           pwd
+          echo "Directory contents:"
           ls -la
+          cd go8 || exit 1
           go clean -modcache
           go mod download
-        working-directory: go8
           
       - name: Run Unit Tests
         run: |
