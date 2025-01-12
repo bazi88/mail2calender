@@ -88,10 +88,12 @@ jobs:
             ${{ runner.os }}-go-
           
       - name: Setup and Download Dependencies
-        working-directory: ./go8
         run: |
+          pwd
+          ls -la
           go clean -modcache
           go mod download
+        working-directory: go8
           
       - name: Run Unit Tests
         run: |
