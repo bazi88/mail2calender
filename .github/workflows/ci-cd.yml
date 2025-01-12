@@ -157,7 +157,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: 22
           script: |
-            cd /path/to/deployment
-            docker-compose pull
-            docker-compose up -d 
+            cd ~/Desktop/structure/mono_golang
+            docker compose pull
+            docker compose up -d 
