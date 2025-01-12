@@ -68,11 +68,26 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Email == "" {
+		respond.Error(w, http.StatusBadRequest, ErrEmailRequired)
+		return
+	}
+
+	if len(req.Password) < minPasswordLength {
+		respond.Error(w, http.StatusBadRequest, ErrPasswordLength)
+		return
+	}
+
 	ctx := r.Context()
 
-	user, _, err := h.repo.Login(ctx, req)
+	user, match, err := h.repo.Login(ctx, req)
 	if err != nil {
-		respond.Status(w, http.StatusUnauthorized)
+		respond.Error(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	if !match {
+		respond.Error(w, http.StatusUnauthorized, errors.New("invalid password"))
 		return
 	}
 

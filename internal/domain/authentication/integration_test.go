@@ -983,7 +983,7 @@ func TestHandler_LoginWithInvalidPasswordIntegration(t *testing.T) {
 			args: args{
 				LoginRequest: &LoginRequest{
 					Email:    "email@example.com",
-					Password: "wrongPassword",
+					Password: "wrongPassword123456",
 				},
 			},
 			want: want{
@@ -1064,7 +1064,7 @@ func TestHandler_SessionExpirationIntegration(t *testing.T) {
 	session := newSession(migrator.DB, 1*time.Second)
 	repo := NewRepo(client, migrator.DB, session)
 
-	hashedPassword, err := argon2id.CreateHash("testPassword", argon2id.DefaultParams)
+	hashedPassword, err := argon2id.CreateHash("testPassword123456", argon2id.DefaultParams)
 	assert.Nil(t, err)
 
 	_, err = repo.db.ExecContext(context.Background(), `
@@ -1076,7 +1076,7 @@ func TestHandler_SessionExpirationIntegration(t *testing.T) {
 	// First login to get session token
 	loginReq := &LoginRequest{
 		Email:    "session@test.com",
-		Password: "testPassword",
+		Password: "testPassword123456",
 	}
 	buf := new(bytes.Buffer)
 	err = json.NewEncoder(buf).Encode(loginReq)
