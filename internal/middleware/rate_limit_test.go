@@ -1,27 +1,30 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRateLimiter(t *testing.T) {
-	// Tạo Redis client cho testing
+	// Khởi tạo miniredis
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+
+	// Tạo Redis client kết nối đến miniredis
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: mr.Addr(),
 		DB:   0,
 	})
 	defer redisClient.Close()
-
-	// Xóa tất cả keys trong Redis test database
-	redisClient.FlushDB(context.Background())
 
 	// Tạo rate limiter cho test (3 requests/second)
 	rateLimiter := NewRedisRateLimiter(redisClient, 3, time.Second, "test")
@@ -61,7 +64,8 @@ func TestRateLimiter(t *testing.T) {
 
 	// Test case 3: Reset sau khi hết thời gian
 	t.Run("Reset after duration", func(t *testing.T) {
-		time.Sleep(time.Second)
+		// Fast-forward thời gian trong miniredis
+		mr.FastForward(time.Second)
 
 		req := httptest.NewRequest("GET", "/test", nil)
 		rr := httptest.NewRecorder()
