@@ -75,16 +75,24 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           
+      - name: Clean Go Cache
+        run: |
+          rm -rf ~/go/pkg/mod
+          rm -rf ~/.cache/go-build
+          
       - name: Go Cache
         uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ github.sha }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
+            ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-
             ${{ runner.os }}-go-
+          
+      - name: Download Dependencies
+        run: go mod download
           
       - name: Run Unit Tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
