@@ -4,6 +4,8 @@ import (
 	"mono-golang/internal/config"
 	"mono-golang/internal/infrastructure/logger"
 	"mono-golang/internal/server"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Version is injected using ldflags during build time
@@ -22,8 +24,10 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize logger
-	logger.SetLevel(cfg.Logger.Level)
 	log := logger.GetLogger()
+	if cfg.API.RequestLog {
+		log.SetLevel(logrus.DebugLevel)
+	}
 	log.Info("Starting application...")
 
 	s := server.New(server.WithVersion(Version))
