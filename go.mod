@@ -28,9 +28,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/swaggo/files v1.0.1
-	github.com/swaggo/gin-swagger v1.6.0
-	github.com/swaggo/swag v1.8.12
+	github.com/swaggo/swag v1.16.3
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.nhat.io/otelsql v0.15.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0

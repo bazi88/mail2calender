@@ -507,14 +507,15 @@ paths:
     get:
       consumes:
       - application/json
-      description: Check if the API is running
+      description: Check if the service is healthy
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            type: string
+            additionalProperties: true
+            type: object
       summary: Health check
       tags:
       - health

@@ -479,7 +479,7 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "Check if the API is running",
+                "description": "Check if the service is healthy",
                 "consumes": [
                     "application/json"
                 ],
@@ -494,7 +494,8 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }

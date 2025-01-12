@@ -22,93 +22,89 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
-	_ "mono-golang/docs"
-
-	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/rs/cors"
+	"github.com/sirupsen/logrus"
 
 	"mono-golang/internal/config"
-	"mono-golang/internal/delivery/http/middleware"
-	"mono-golang/internal/domain/auth"
-	"mono-golang/internal/domain/author"
-	"mono-golang/internal/domain/book"
-	"mono-golang/internal/infrastructure/cache"
-	"mono-golang/internal/infrastructure/database"
+	"mono-golang/internal/domain/health"
 	"mono-golang/internal/infrastructure/logger"
-	"mono-golang/internal/infrastructure/metrics"
 )
-
-// @Summary Health check
-// @Description Check if the API is running
-// @Tags health
-// @Accept json
-// @Produce json
-// @Success 200 {string} string "OK"
-// @Router /health [get]
-func healthCheck(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
-}
 
 func main() {
 	// Load config
 	cfg := config.Load()
 
 	// Setup logger
-	logger := logger.New(cfg)
+	log := logger.GetLogger()
+	if cfg.API.RequestLog {
+		log.SetLevel(logrus.DebugLevel)
+	}
 
-	// Setup metrics
-	metrics := metrics.New(cfg)
+	// Setup database connection string
+	dbURL := fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.DB.Driver,
+		cfg.DB.User,
+		cfg.DB.Pass,
+		cfg.DB.Host,
+		cfg.DB.Port,
+		cfg.DB.Name,
+		cfg.DB.SSLMode,
+	)
 
 	// Setup database
-	db, err := database.New(cfg)
+	db, err := sqlx.Connect(cfg.DB.Driver, dbURL)
 	if err != nil {
-		logger.Fatal("failed to connect to database", err)
+		log.Fatal("failed to connect to database", err)
 	}
 
-	// Setup Redis cache
-	cache, err := cache.New(cfg)
-	if err != nil {
-		logger.Fatal("failed to connect to Redis", err)
-	}
+	// Configure database connection pool
+	db.SetMaxOpenConns(cfg.DB.MaxConnectionPool)
+	db.SetMaxIdleConns(cfg.DB.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.DB.ConnectionLifetime)
 
-	// Setup Gin router
-	router := gin.Default()
+	// Setup Chi router
+	router := chi.NewRouter()
 
-	// Setup CORS middleware
-	router.Use(middleware.CORS())
+	// Setup middleware
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
 
-	// Health check endpoint
-	router.GET("/health", healthCheck)
+	// Setup CORS
+	router.Use(cors.New(cors.Options{
+		AllowedOrigins:   strings.Split(cfg.CORS.AllowedOrigins, ","),
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}).Handler)
 
-	// Setup Swagger
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// Setup API routes
-	v1 := router.Group("/api/v1")
-	{
-		// Auth routes
-		auth.RegisterHTTPEndpoints(v1, db, cache, logger, metrics)
-
-		// Author routes
-		author.RegisterHTTPEndpoints(v1, db, cache, logger, metrics)
-
-		// Book routes
-		book.RegisterHTTPEndpoints(v1, db, cache, logger, metrics)
-	}
+	// Setup health check
+	healthRepo := health.NewRepo(db)
+	healthUseCase := health.New(healthRepo)
+	health.RegisterHTTPEndPoints(router, healthUseCase)
 
 	// Start server
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler: router,
+		Addr:              fmt.Sprintf("%s:%d", cfg.API.Host, cfg.API.Port),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
+		log.Infof("starting server on %s:%d", cfg.API.Host, cfg.API.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("failed to start server", err)
+			log.Fatal("failed to start server", err)
 		}
 	}()
 
@@ -117,14 +113,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("shutting down server...")
+	log.Info("shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatal("server forced to shutdown", err)
+		log.Fatal("server forced to shutdown", err)
 	}
 
-	logger.Info("server exited properly")
+	log.Info("server exited properly")
 }
