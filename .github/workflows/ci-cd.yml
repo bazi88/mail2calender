@@ -15,9 +15,6 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: go8
     steps:
       - uses: actions/checkout@v3
         with:
@@ -41,8 +38,8 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --timeout=5m
-          working-directory: go8
+          args: --timeout=5m --path-prefix=go8
+          working-directory: .
           
   test:
     name: Run Tests
