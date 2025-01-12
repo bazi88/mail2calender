@@ -71,8 +71,10 @@ jobs:
           
       - name: Clean Go Cache
         run: |
-          rm -rf ~/go/pkg/mod
-          rm -rf ~/.cache/go-build
+          sudo rm -rf ~/go/pkg/mod
+          sudo rm -rf ~/.cache/go-build
+          mkdir -p ~/go/pkg/mod
+          mkdir -p ~/.cache/go-build
           
       - name: Go Cache
         uses: actions/cache@v3
@@ -87,7 +89,9 @@ jobs:
           
       - name: Download Dependencies
         working-directory: go8
-        run: go mod download
+        run: |
+          go clean -modcache
+          go mod download
           
       - name: Run Unit Tests
         working-directory: go8
