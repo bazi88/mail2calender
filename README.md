@@ -2084,3 +2084,5 @@ newgrp docker
 sudo systemctl restart docker
 su - ${USER} # or logout and login
 ```
+
+For MacOS:
