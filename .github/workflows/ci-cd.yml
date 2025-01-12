@@ -87,15 +87,16 @@ jobs:
             ${{ runner.os }}-go-${{ hashFiles('go8/go.mod', 'go8/go.sum') }}-
             ${{ runner.os }}-go-
           
-      - name: Download Dependencies
-        working-directory: go8
+      - name: Setup and Download Dependencies
         run: |
+          cd go8
           go clean -modcache
           go mod download
           
       - name: Run Unit Tests
-        working-directory: go8
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        run: |
+          cd go8
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
         env:
           DB_HOST: localhost
           DB_PORT: 5432
