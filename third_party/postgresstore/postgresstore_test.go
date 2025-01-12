@@ -145,10 +145,9 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	store := New(db)
+	store := NewWithCleanupInterval(db, 0)
 	require.NotNil(t, store)
 	require.NotNil(t, store.db)
-	store.StopCleanup()
 }
 
 func TestNewWithCleanupInterval(t *testing.T) {
