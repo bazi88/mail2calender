@@ -5,20 +5,12 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
-# Thêm điều kiện để check xem workflow có được enable không
-if: ${{ vars.ENABLE_GITHUB_ACTIONS == 'true' }}
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.21'
   DOCKER_IMAGE: go8/server
   DOCKER_TAG: ${{ github.sha }}
-  # Thêm các biến môi trường từ GitHub secrets
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-  DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
 
 jobs:
   lint:
@@ -93,8 +85,8 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
           
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -104,6 +96,8 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:latest,${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
   deploy:
     name: Deploy to Production
@@ -112,12 +106,14 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Deploy to production
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
           script: |
             cd /path/to/deployment
             docker-compose pull
