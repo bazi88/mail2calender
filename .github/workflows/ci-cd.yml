@@ -19,7 +19,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          path: mono-golang
       
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -30,16 +29,16 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/golangci-lint
-          key: ${{ runner.os }}-golangci-${{ hashFiles('mono-golang/go8/.golangci.yml') }}-${{ github.sha }}
+          key: ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-golangci-${{ hashFiles('mono-golang/go8/.golangci.yml') }}-
+            ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-
             ${{ runner.os }}-golangci-
       
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --timeout=5m --path-prefix=mono-golang/go8
+          args: --timeout=5m --path-prefix=go8
           working-directory: .
           
   test:
@@ -64,13 +63,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          path: mono-golang
       
-      - name: Debug Directory
-        run: |
-          pwd
-          ls -la
-          
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -89,20 +82,20 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('mono-golang/go8/go.mod', 'mono-golang/go8/go.sum') }}-${{ github.sha }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go8/go.mod', 'go8/go.sum') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('mono-golang/go8/go.mod', 'mono-golang/go8/go.sum') }}-
+            ${{ runner.os }}-go-${{ hashFiles('go8/go.mod', 'go8/go.sum') }}-
             ${{ runner.os }}-go-
           
       - name: Setup and Download Dependencies
         run: |
-          cd mono-golang/go8
+          cd go8
           go clean -modcache
           go mod download
           
       - name: Run Unit Tests
         run: |
-          cd mono-golang/go8
+          cd go8
           go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
         env:
           DB_HOST: localhost
@@ -114,7 +107,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: mono-golang/go8/coverage.txt
+          file: go8/coverage.txt
 
   build:
     name: Build and Push Docker Image
@@ -125,7 +118,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          path: mono-golang
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -139,7 +131,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: mono-golang/go8
+          context: go8
           push: true
           tags: ${{ env.DOCKER_IMAGE }}:latest,${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
