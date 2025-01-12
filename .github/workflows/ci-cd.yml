@@ -88,8 +88,8 @@ jobs:
             ${{ runner.os }}-go-
           
       - name: Setup and Download Dependencies
+        working-directory: ./go8
         run: |
-          cd go8
           go clean -modcache
           go mod download
           
