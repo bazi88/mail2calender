@@ -1,0 +1,8 @@
+grpcio==1.56.0
+grpcio-tools==1.56.0
+grpcio-health-checking==1.56.0
+torch==2.0.1
+transformers==4.30.2
+protobuf==4.23.3
+prometheus-client==0.17.1
+python-dotenv==1.0.0

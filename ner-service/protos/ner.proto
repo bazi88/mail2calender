@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package ner;
+
+service NERService {
+    rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
+    rpc BatchExtractEntities(BatchExtractEntitiesRequest) returns (BatchExtractEntitiesResponse);
+}
+
+message ExtractEntitiesRequest {
+    string text = 1;
+    string language = 2;
+}
+
+message ExtractEntitiesResponse {
+    repeated Entity entities = 1;
+}
+
+message BatchExtractEntitiesRequest {
+    repeated ExtractEntitiesRequest requests = 1;
+    int32 batch_size = 2;
+}
+
+message BatchExtractEntitiesResponse {
+    repeated ExtractEntitiesResponse responses = 1;
+    float total_process_time = 2;
+    string error_message = 3;
+}
+
+message Entity {
+    string text = 1;
+    string type = 2;
+    float confidence = 3;
+    int32 start_pos = 4;
+    int32 end_pos = 5;
+}
