@@ -24,12 +24,13 @@ COPY main.py .
 RUN touch protos/__init__.py server/__init__.py model/__init__.py utils/__init__.py config/__init__.py
 
 # Generate gRPC code
-RUN cd /app && \
+RUN cd /app/protos && \
     python -m grpc_tools.protoc \
     -I. \
     --python_out=. \
     --grpc_python_out=. \
-    protos/ner.proto
+    ner.proto && \
+    sed -i 's/import ner_pb2/from . import ner_pb2/' ner_pb2_grpc.py
 
 # Create directory for model cache
 RUN mkdir -p /root/.cache/huggingface

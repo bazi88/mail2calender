@@ -18,22 +18,13 @@ class NERModel:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             logger.info(f"Using device: {self.device}")
             
-            self.tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base")
-            self.model = AutoModelForTokenClassification.from_pretrained(
-                "vinai/phobert-base", 
-                num_labels=29
-            )
+            # Sử dụng model đã fine-tune cho NER tiếng Việt
+            model_name = "NlpHUST/ner-vietnamese-electra-base"
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.model = AutoModelForTokenClassification.from_pretrained(model_name)
             self.model.to(self.device)
             
-            self.id2label = {
-                0: "O", 1: "B-PER", 2: "I-PER", 3: "B-ORG", 4: "I-ORG",
-                5: "B-LOC", 6: "I-LOC", 7: "B-MISC", 8: "I-MISC",
-                9: "B-TIME", 10: "I-TIME", 11: "B-DATE", 12: "I-DATE",
-                13: "B-MONEY", 14: "I-MONEY", 15: "B-PERCENT", 16: "I-PERCENT",
-                17: "B-NUMBER", 18: "I-NUMBER", 19: "B-EMAIL", 20: "I-EMAIL",
-                21: "B-URL", 22: "I-URL", 23: "B-PHONE", 24: "I-PHONE",
-                25: "B-ADDRESS", 26: "I-ADDRESS", 27: "B-OTHER", 28: "I-OTHER"
-            }
+            self.id2label = self.model.config.id2label
             
             # Cache cho kết quả xử lý
             self.cache = {}

@@ -13,8 +13,8 @@ import protos.ner_pb2_grpc as ner_pb2_grpc
 logger = logging.getLogger(__name__)
 
 class NERService(ner_pb2_grpc.NERServiceServicer):
-    def __init__(self):
-        self.model = NERModel()
+    def __init__(self, model: NERModel):
+        self.model = model
         logger.info(f"NER Service initialized with device: {config.DEVICE}")
 
     async def ExtractEntities(self, request, context):
