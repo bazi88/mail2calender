@@ -1,6 +1,6 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForTokenClassification
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple
 from functools import lru_cache
 import logging
 import time
@@ -18,13 +18,14 @@ class NERModel:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             logger.info(f"Using device: {self.device}")
             
-            # Sử dụng model đã fine-tune cho NER tiếng Việt
-            model_name = "NlpHUST/ner-vietnamese-electra-base"
+            # Sử dụng model đa ngôn ngữ cho NER
+            model_name = "Davlan/xlm-roberta-base-ner-hrl"
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
             self.model = AutoModelForTokenClassification.from_pretrained(model_name)
             self.model.to(self.device)
             
             self.id2label = self.model.config.id2label
+            logger.info(f"Model labels: {self.id2label}")
             
             # Cache cho kết quả xử lý
             self.cache = {}
@@ -33,55 +34,88 @@ class NERModel:
             logger.error(f"Error initializing NER model: {e}")
             raise
 
-    @torch.no_grad()
-    @lru_cache(maxsize=1000)
-    def extract_entities(self, text: str) -> List[Dict]:
-        """
-        Trích xuất entities từ một đoạn text.
-        
-        Args:
-            text (str): Đoạn text cần xử lý
-            
-        Returns:
-            List[Dict]: Danh sách các entities được tìm thấy
-        """
+    def extract_entities(self, text: str) -> Tuple[List[Dict], float]:
         try:
             start_time = time.time()
             
-            # Tokenize input
-            inputs = self.tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=512  # Giới hạn độ dài input
-            )
-            inputs.to(self.device)
-
-            # Model inference
-            outputs = self.model(**inputs)
+            # Kiểm tra cache
+            if text in self.cache:
+                logger.info("Using cached result")
+                return self.cache[text]
             
-            # Tính softmax để lấy confidence scores
-            probabilities = torch.softmax(outputs.logits, dim=2)
+            # Tokenize
+            inputs = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Inference
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                
+            # Lấy predictions
             predictions = torch.argmax(outputs.logits, dim=2)
-            confidence_scores = torch.max(probabilities, dim=2).values
-
-            # Convert tokens và labels
-            tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-            labels = [self.id2label[p.item()] for p in predictions[0]]
-            confidences = [score.item() for score in confidence_scores[0]]
-
-            # Process entities
-            entities = self._process_entities(tokens, labels, confidences, text)
+            scores = torch.softmax(outputs.logits, dim=2)
+            
+            # Debug info
+            logger.info(f"Raw predictions shape: {predictions.shape}")
+            logger.info(f"Predictions: {predictions[0].tolist()}")
+            
+            # Chuyển tokens thành text
+            tokens = self.tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
+            logger.info(f"Tokens: {tokens}")
+            
+            # Xử lý kết quả
+            entities = []
+            current_entity: Optional[Dict] = None
+            
+            for idx, (token, pred_id) in enumerate(zip(tokens, predictions[0])):
+                pred_label = self.id2label[pred_id.item()]
+                confidence = scores[0][idx][pred_id].item()
+                
+                logger.info(f"Token: {token}, Label: {pred_label}, Confidence: {confidence:.2f}")
+                
+                if pred_label != "O":
+                    # Bỏ qua special tokens
+                    if token in [self.tokenizer.cls_token, self.tokenizer.sep_token, self.tokenizer.pad_token]:
+                        continue
+                        
+                    # Xử lý B- tags (beginning of entity)
+                    if pred_label.startswith("B-"):
+                        if current_entity is not None:
+                            entities.append(current_entity.copy())
+                        current_entity = {
+                            "text": token.replace('▁', ''),
+                            "type": pred_label[2:],
+                            "confidence": confidence,
+                            "start_pos": idx,
+                            "end_pos": idx
+                        }
+                    
+                    # Xử lý I- tags (inside of entity)
+                    elif pred_label.startswith("I-"):
+                        if current_entity is not None and current_entity["type"] == pred_label[2:]:
+                            current_entity["text"] += token.replace('▁', '')
+                            current_entity["end_pos"] = idx
+                            current_entity["confidence"] = (current_entity["confidence"] + confidence) / 2
+                
+                else:  # O tag
+                    if current_entity is not None:
+                        entities.append(current_entity.copy())
+                        current_entity = None
+            
+            # Thêm entity cuối cùng nếu có
+            if current_entity is not None:
+                entities.append(current_entity.copy())
             
             process_time = time.time() - start_time
             logger.info(f"Processed text in {process_time:.2f}s. Found {len(entities)} entities.")
             
-            return entities
+            # Cache kết quả
+            self.cache[text] = (entities, process_time)
+            return entities, process_time
             
         except Exception as e:
-            logger.error(f"Error processing text: {e}")
-            return []
+            logger.error(f"Error extracting entities: {e}")
+            return [], 0.0
 
     def batch_extract_entities(self, texts: List[str], batch_size: int = 8) -> List[List[Dict]]:
         """
@@ -148,7 +182,7 @@ class NERModel:
             List[Dict]: Danh sách các entities được tìm thấy
         """
         entities = []
-        current_entity = None
+        current_entity: Optional[Dict] = None
         
         for i, (token, label, conf) in enumerate(zip(tokens, labels, confidences)):
             if label.startswith("B-"):

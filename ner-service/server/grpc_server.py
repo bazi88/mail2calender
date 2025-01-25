@@ -20,27 +20,27 @@ class NERService(ner_pb2_grpc.NERServiceServicer):
     async def ExtractEntities(self, request, context):
         start_time = time.time()
         try:
-            entities = self.model.extract_entities(request.text)
-
-            process_time = time.time() - start_time
-            metrics.processing_time.labels(method='extract_entities').observe(process_time)
-            metrics.request_counter.labels(method='extract', status='success').inc()
-
-            return ner_pb2.ExtractEntitiesResponse(entities=[
-                ner_pb2.Entity(
-                    text=e['text'],
-                    type=e['type'],
-                    confidence=e['confidence'],
-                    start_pos=e['start_pos'],
-                    end_pos=e['end_pos']
+            entities, process_time = self.model.extract_entities(request.text)
+            
+            # Convert entities to gRPC format
+            grpc_entities = []
+            for entity in entities:
+                grpc_entity = ner_pb2.Entity(
+                    text=str(entity.get("text", "")),
+                    type=str(entity.get("type", "")), 
+                    confidence=float(entity.get("confidence", 0.0)),
+                    start_pos=int(entity.get("start_pos", 0)),
+                    end_pos=int(entity.get("end_pos", 0))
                 )
-                for e in entities
-            ],
-            process_time=process_time
+                grpc_entities.append(grpc_entity)
+
+            return ner_pb2.ExtractEntitiesResponse(
+                entities=grpc_entities,
+                process_time=float(process_time)
             )
         except Exception as e:
             logger.error(f"Error extracting entities: {e}")
-            metrics.request_counter.labels(method='extract', status= 'error').inc()
+            metrics.request_counter.labels(method='extract', status='error').inc()
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return ner_pb2.ExtractEntitiesResponse(error_message=str(e))

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package ner;
+
+option go_package = "test-client-go/proto";
+
+// Entity represents a named entity extracted from text
+message Entity {
+    string text = 1;
+    string type = 2;
+    float confidence = 3;
+    int32 start_pos = 4;
+    int32 end_pos = 5;
+}
+
+// Request to extract entities from a single text
+message ExtractEntitiesRequest {
+    string text = 1;
+}
+
+// Response containing extracted entities and processing time
+message ExtractEntitiesResponse {
+    repeated Entity entities = 1;
+    float process_time = 2;
+    string error_message = 3;
+}
+
+// Request for batch entity extraction
+message BatchExtractEntitiesRequest {
+    repeated ExtractEntitiesRequest requests = 1;
+    int32 batch_size = 2;
+}
+
+// Response for a single text in batch processing
+message NERResponse {
+    repeated Entity entities = 1;
+}
+
+// Response for batch entity extraction
+message BatchNERResponse {
+    repeated NERResponse responses = 1;
+    float total_process_time = 2;
+    string error_message = 3;
+}
+
+// NER service definition
+service NERService {
+    // Extract entities from a single text
+    rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse) {}
+    
+    // Extract entities from multiple texts in batch
+    rpc BatchExtractEntities(BatchExtractEntitiesRequest) returns (BatchNERResponse) {}
+}
