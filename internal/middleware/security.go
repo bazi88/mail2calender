@@ -2,158 +2,136 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
 
-// SecurityConfig chứa cấu hình cho security headers
+// SecurityConfig holds configuration for security headers
 type SecurityConfig struct {
-	// CSP Configuration
-	CSPDirectives map[string][]string
-
-	// HSTS Configuration
 	HSTSMaxAge            int
 	HSTSIncludeSubdomains bool
-	HSTSPreload           bool
-
-	// Frame Options
-	FrameOptions string // DENY, SAMEORIGIN, or ALLOW-FROM
-
-	// Referrer Policy
-	ReferrerPolicy string
-
-	// Feature Policy
-	FeaturePolicy map[string]string
-
-	// Additional Security Headers
-	CustomHeaders map[string]string
-
-	// Content Type Options
-	ContentTypeOptions string
-
-	// XSS Protection
-	XSSProtection string
-
-	// Cross-Origin Policies
-	CrossOriginEmbedderPolicy string
-	CrossOriginOpenerPolicy   string
-	CrossOriginResourcePolicy string
+	CSPDirectives         map[string][]string
+	FrameOptions          string
+	XContentTypeOptions   string
+	ReferrerPolicy        string
+	PermissionsPolicy     string
+	FeaturePolicy         map[string]string
+	CustomHeaders         map[string]string
 }
 
-// DefaultSecurityConfig trả về cấu hình mặc định
+// DefaultSecurityConfig returns the default security configuration
 func DefaultSecurityConfig() *SecurityConfig {
 	return &SecurityConfig{
+		HSTSMaxAge:            31536000, // 1 year
+		HSTSIncludeSubdomains: true,
 		CSPDirectives: map[string][]string{
 			"default-src": {"'self'"},
-			"script-src":  {"'self'", "'unsafe-inline'", "'unsafe-eval'"},
-			"style-src":   {"'self'", "'unsafe-inline'"},
-			"img-src":     {"'self'", "data:", "https:"},
-			"font-src":    {"'self'"},
-			"connect-src": {"'self'"},
-			"frame-src":   {"'none'"},
-			"object-src":  {"'none'"},
-			"base-uri":    {"'self'"},
-			"form-action": {"'self'"},
+			"script-src":  {"'self'"},
+			"style-src":   {"'self'"},
 		},
-		HSTSMaxAge:            31536000,
-		HSTSIncludeSubdomains: true,
-		HSTSPreload:           true,
-		FrameOptions:          "DENY",
-		ReferrerPolicy:        "strict-origin-when-cross-origin",
-		FeaturePolicy: map[string]string{
-			"accelerometer":   "()",
-			"camera":          "()",
-			"geolocation":     "()",
-			"gyroscope":       "()",
-			"magnetometer":    "()",
-			"microphone":      "()",
-			"payment":         "()",
-			"usb":             "()",
-			"interest-cohort": "()",
-			"autoplay":        "()",
-			"fullscreen":      "self",
-		},
-		ContentTypeOptions:        "nosniff",
-		XSSProtection:             "1; mode=block",
-		CrossOriginEmbedderPolicy: "require-corp",
-		CrossOriginOpenerPolicy:   "same-origin",
-		CrossOriginResourcePolicy: "same-origin",
+		FrameOptions:        "DENY",
+		XContentTypeOptions: "nosniff",
+		ReferrerPolicy:      "strict-origin-when-cross-origin",
+		PermissionsPolicy:   "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+		FeaturePolicy:       make(map[string]string),
 		CustomHeaders: map[string]string{
-			"X-Permitted-Cross-Domain-Policies": "none",
-			"X-Download-Options":                "noopen",
-			"X-DNS-Prefetch-Control":            "off",
+			"X-XSS-Protection": "1; mode=block",
 		},
 	}
 }
 
-// SecurityHeadersWithConfig tạo middleware với cấu hình tùy chỉnh
-func SecurityHeadersWithConfig(config *SecurityConfig) func(http.Handler) http.Handler {
+// ValidateConfig checks if the security configuration is valid
+func ValidateConfig(config *SecurityConfig) error {
 	if config == nil {
+		return fmt.Errorf("security config cannot be nil")
+	}
+	if config.HSTSMaxAge < 0 {
+		return fmt.Errorf("HSTS max age cannot be negative: %d", config.HSTSMaxAge)
+	}
+	return nil
+}
+
+// buildCSP constructs the Content-Security-Policy header value
+func buildCSP(directives map[string][]string) string {
+	if len(directives) == 0 {
+		return ""
+	}
+
+	var policies []string
+	for directive, sources := range directives {
+		if len(sources) > 0 {
+			policies = append(policies, fmt.Sprintf("%s %s", directive, strings.Join(sources, " ")))
+		}
+	}
+	return strings.Join(policies, "; ")
+}
+
+// buildFeaturePolicy constructs the Feature-Policy header value
+func buildFeaturePolicy(policies map[string]string) string {
+	if len(policies) == 0 {
+		return ""
+	}
+
+	var featurePolicies []string
+	for feature, value := range policies {
+		featurePolicies = append(featurePolicies, fmt.Sprintf("%s=%s", feature, value))
+	}
+	return strings.Join(featurePolicies, "; ")
+}
+
+// setSecurityHeaders sets security headers based on the provided map
+func setSecurityHeaders(w http.ResponseWriter, headers map[string]string) {
+	for key, value := range headers {
+		if value != "" {
+			w.Header().Set(key, value)
+		}
+	}
+	log.Printf("Security headers set: %v", headers)
+}
+
+// SecurityHeaders middleware adds security headers with default configuration
+func SecurityHeaders(next http.Handler) http.Handler {
+	return SecurityHeadersWithConfig(nil)(next)
+}
+
+// SecurityHeadersWithConfig creates middleware that adds security headers with custom configuration
+func SecurityHeadersWithConfig(config *SecurityConfig) func(http.Handler) http.Handler {
+	// If config is nil, use default configuration
+	if config == nil {
+		config = DefaultSecurityConfig()
+	}
+
+	// Validate config before creating middleware
+	if err := ValidateConfig(config); err != nil {
+		log.Printf("Security config validation failed: %v", err)
 		config = DefaultSecurityConfig()
 	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Content-Type Options
-			w.Header().Set("X-Content-Type-Options", config.ContentTypeOptions)
-
-			// Frame Options
-			w.Header().Set("X-Frame-Options", config.FrameOptions)
-
-			// XSS Protection
-			w.Header().Set("X-XSS-Protection", config.XSSProtection)
-
-			// HSTS
-			if config.HSTSMaxAge > 0 {
-				hsts := []string{
-					fmt.Sprintf("max-age=%d", config.HSTSMaxAge),
-				}
-				if config.HSTSIncludeSubdomains {
-					hsts = append(hsts, "includeSubDomains")
-				}
-				if config.HSTSPreload {
-					hsts = append(hsts, "preload")
-				}
-				w.Header().Set("Strict-Transport-Security", strings.Join(hsts, "; "))
+			hstsValue := fmt.Sprintf("max-age=%d", config.HSTSMaxAge)
+			if config.HSTSIncludeSubdomains {
+				hstsValue += "; includeSubDomains"
 			}
 
-			// Content Security Policy
-			if len(config.CSPDirectives) > 0 {
-				var csp []string
-				for directive, values := range config.CSPDirectives {
-					csp = append(csp, directive+" "+strings.Join(values, " "))
-				}
-				w.Header().Set("Content-Security-Policy", strings.Join(csp, "; "))
+			headers := map[string]string{
+				"Strict-Transport-Security": hstsValue,
+				"Content-Security-Policy":   buildCSP(config.CSPDirectives),
+				"X-Frame-Options":           config.FrameOptions,
+				"X-Content-Type-Options":    config.XContentTypeOptions,
+				"Referrer-Policy":           config.ReferrerPolicy,
+				"Permissions-Policy":        config.PermissionsPolicy,
+				"Feature-Policy":            buildFeaturePolicy(config.FeaturePolicy),
 			}
 
-			// Referrer Policy
-			w.Header().Set("Referrer-Policy", config.ReferrerPolicy)
-
-			// Feature Policy
-			if len(config.FeaturePolicy) > 0 {
-				var fp []string
-				for feature, value := range config.FeaturePolicy {
-					fp = append(fp, feature+"="+value)
-				}
-				w.Header().Set("Permissions-Policy", strings.Join(fp, ", "))
+			// Add custom headers
+			for key, value := range config.CustomHeaders {
+				headers[key] = value
 			}
 
-			// Cross-Origin Policies
-			w.Header().Set("Cross-Origin-Embedder-Policy", config.CrossOriginEmbedderPolicy)
-			w.Header().Set("Cross-Origin-Opener-Policy", config.CrossOriginOpenerPolicy)
-			w.Header().Set("Cross-Origin-Resource-Policy", config.CrossOriginResourcePolicy)
-
-			// Custom Headers
-			for header, value := range config.CustomHeaders {
-				w.Header().Set(header, value)
-			}
-
+			setSecurityHeaders(w, headers)
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// SecurityHeaders sử dụng cấu hình mặc định
-func SecurityHeaders(next http.Handler) http.Handler {
-	return SecurityHeadersWithConfig(DefaultSecurityConfig())(next)
 }

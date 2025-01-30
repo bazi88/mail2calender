@@ -1,0 +1,227 @@
+# Mail2Calendar Project - Cline Rules
+
+## Memory Bank Location: ./docs/cline_docs/
+
+### Required Memory Files
+
+1. projectContext.md
+   - Project purpose and goals
+   - Key problems solved
+   - Main functionality overview
+   - Integration points (SMTP, Calendar APIs)
+
+2. systemArchitecture.md
+   - Project structure explanation (/cmd, /internal, /config, etc)
+   - Service architecture
+   - Database schemas
+   - External services integration
+
+3. techStack.md
+   - Go version and dependencies
+   - Infrastructure components (docker, databases)
+   - Third-party services
+   - Development environment setup
+
+4. developmentStatus.md
+   - Implemented features
+   - Known issues
+   - Current development focus
+   - Testing coverage
+
+5. activeContext.md
+   - Current development branch
+   - Ongoing feature development
+   - Recent changes
+   - Immediate next steps
+
+## Core Workflows
+
+### Starting New Development
+1. Verify Memory Bank files exist in ./docs/cline_docs/
+2. Create missing documentation files if needed
+3. Read ALL Memory Bank files before any development
+4. Validate complete understanding of:
+   - Project layout (/cmd, /internal, /config, etc)
+   - Domain models and business logic
+   - Infrastructure dependencies
+
+### IDE State Monitoring
+1. Track active document context:
+   - Current file path and content
+   - Open editors and their state
+   - Terminal sessions and output
+   - Debug/test status
+
+2. Configuration changes:
+   - VS Code settings updates
+   - Extension configurations
+   - Project-specific settings
+   - Launch configurations
+
+3. Documentation updates:
+   - README changes
+   - API documentation
+   - Code comments
+   - Configuration examples
+
+### Automatic Updates
+1. Monitor for changes in:
+   - Code style standards
+   - Microsoft content policies
+   - VS Code plugin settings
+   - Project documentation
+
+2. Update procedures:
+   - Scan changed files
+   - Update relevant memory files
+   - Adjust development guidelines
+   - Notify about significant changes
+
+### Code Standards
+1. Follow Go project layout conventions:
+   - /cmd - Main applications
+   - /internal - Private code
+   - /pkg - Public libraries
+   - /config - Configuration
+   
+2. Testing Requirements:
+   - Unit tests required for new code
+   - Integration tests for API endpoints
+   - E2E tests for critical flows
+
+3. Documentation:
+   - Update API docs in /docs
+   - Maintain OpenAPI specs
+   - Document configuration changes
+
+### Memory Bank Updates
+When "update memory bank" is requested:
+1. Review current state
+2. Update all documentation in ./docs/cline_docs/
+3. Document:
+   - Recent changes
+   - Current state
+   - Next steps
+   - Known issues
+
+### Directory Context Rules
+Must understand key directories:
+- /cmd - Entry points and main applications
+- /internal - Private application code
+- /config - Configuration management
+- /database - Database migrations and seeds
+- /docs - Documentation and OpenAPI specs
+- /ent - Database models and queries
+- /examples - Example usage and test cases
+- /test-client-go - Test client implementations
+- /scripts - Utility scripts
+- /third_party - Third-party libraries and tools
+
+### Version Control
+1. Track changes in:
+   - Source code
+   - Documentation
+   - Configuration files
+   - Build scripts
+
+2. Monitor updates to:
+   - Dependencies
+   - Tools and utilities
+   - Development scripts
+   - CI/CD pipelines
+
+### Error Recovery### Version Control
+1. Track changes in:
+   - Source code
+   - Documentation
+   - Configuration files
+   - Build scripts
+
+2. Monitor updates to:
+   - Dependencies
+   - Tools and utilities
+   - Development scripts
+   - CI/CD pipelines
+
+3. Handle version control for different file types:
+   - Use separate branches for documentation updates
+   - Tag releases for major changes in configuration
+   - Maintain a changelog for build scripts
+If context is lost:
+1. Stop all development
+2. Read Memory Bank files
+3. Verify understanding with user
+4. Start with small, safe changes
+
+## Essential Tools Understanding
+- Task runner (Taskfile.yml)
+- Air for hot reload (.air.toml)
+- Docker setup (docker-compose files)
+- Database migrations (/database/migrations)
+- OpenTelemetry integration (/opentelemetry)
+- NER service integration (/ner-service)
+
+## Documentation Requirements
+1. All major changes must update:
+   - Relevant Memory Bank files
+   - API documentation
+   - README.md when applicable
+   - Configuration examples
+
+2. Code documentation:
+   - Package documentation
+   - Function documentation
+   - Complex logic explanation
+   - Configuration parameters
+
+## Security and Compliance
+1. Credential handling:
+   - Use .env files (never commit)
+   - Follow security middleware patterns
+   - Implement proper authentication
+   - Use secure session management
+
+2. Code security:
+   - Input validation
+   - Proper error handling
+   - Secure default configurations
+   - Regular dependency updates
+
+## Testing Standards
+1. Required test types:
+   - Unit tests
+   - Integration tests
+   - E2E tests (/e2e directory)
+
+2. Test coverage:
+   - Core business logic
+   - API endpoints
+   - Error conditions
+   - Edge cases
+
+## Infrastructure Understanding
+1. Docker environment:
+   - Main service
+   - Database
+   - NER service
+   - Monitoring stack
+
+2. Third-party services:
+   - Email integration
+   - Calendar services
+   - Authentication providers
+
+## Style Guidelines
+1. Code formatting:
+   - Follow go fmt standards
+   - Consistent naming conventions
+   - Clear documentation comments
+   - Proper error handling
+
+2. Documentation style:
+   - Clear and concise writing
+   - Proper Markdown formatting
+   - Code block syntax highlighting
+   - Updated examples
+
+Remember: Your understanding comes solely from Memory Bank documentation. Maintain it religiously.
