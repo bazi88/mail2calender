@@ -9,6 +9,11 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// RateLimiter định nghĩa interface cho rate limiting
+type RateLimiter interface {
+	Limit(next http.Handler) http.Handler
+}
+
 type RedisRateLimiter struct {
 	redisClient *redis.Client
 	maxRequests int
@@ -26,8 +31,8 @@ func NewRedisRateLimiter(redisClient *redis.Client, maxRequests int, duration ti
 	}
 }
 
-// RateLimit middleware để giới hạn số lượng request
-func (rl *RedisRateLimiter) RateLimit(next http.Handler) http.Handler {
+// Limit middleware để giới hạn số lượng request
+func (rl *RedisRateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 

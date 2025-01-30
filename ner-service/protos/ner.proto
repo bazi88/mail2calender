@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package ner;
 
+option go_package = "mono-golang/ner-service/protos/ner";
+
 service NERService {
     rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
     rpc BatchExtractEntities(BatchExtractEntitiesRequest) returns (BatchExtractEntitiesResponse);

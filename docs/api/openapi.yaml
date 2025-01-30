@@ -1,0 +1,147 @@
+openapi: 3.0.0
+info:
+  title: Mail2Calendar API
+  version: 1.0.0
+  description: API for converting emails to calendar events
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    Email:
+      type: object
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+        sender:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        content:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+        processed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        location:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+
+paths:
+  /emails:
+    get:
+      summary: List emails
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of emails
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Email'
+
+  /events:
+    post:
+      summary: Create event from email
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emailId:
+                  type: string
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: [] 

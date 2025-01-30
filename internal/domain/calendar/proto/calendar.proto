@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package calendar;
+
+option go_package = "mono-golang/internal/domain/calendar/proto";
+
+service CalendarService {
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}
+
+message Event {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string location = 4;
+  int64 start_time = 5;  // Unix timestamp
+  int64 end_time = 6;    // Unix timestamp
+  repeated string attendees = 7;
+  string organizer = 8;
+  string calendar_id = 9;
+  string status = 10;
+  map<string, string> metadata = 11;
+}
+
+message CreateEventRequest {
+  Event event = 1;
+  string user_id = 2;
+}
+
+message CreateEventResponse {
+  Event event = 1;
+  string error_message = 2;
+}
+
+message UpdateEventRequest {
+  Event event = 1;
+  string user_id = 2;
+}
+
+message UpdateEventResponse {
+  Event event = 1;
+  string error_message = 2;
+}
+
+message DeleteEventRequest {
+  string event_id = 1;
+  string user_id = 2;
+}
+
+message DeleteEventResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message GetEventRequest {
+  string event_id = 1;
+  string user_id = 2;
+}
+
+message GetEventResponse {
+  Event event = 1;
+  string error_message = 2;
+}
+
+message ListEventsRequest {
+  string user_id = 1;
+  int64 start_time = 2;  // Unix timestamp
+  int64 end_time = 3;    // Unix timestamp
+  string calendar_id = 4;
+  int32 page_size = 5;
+  string page_token = 6;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+  string error_message = 3;
+}

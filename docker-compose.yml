@@ -49,12 +49,16 @@ services:
     env_file:
       - .env
     environment:
-      - API_HOST=${API_HOST:-server}
-      - DB_HOST=${DB_HOST:-postgres}
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - DB_HOST=postgres
       - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=go8_db
       - OTEL_OTLP_ENDPOINT=${OTEL_OTLP_ENDPOINT:-otel-collector:4317}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - NER_SERVICE_HOST=ner-service
+      - NER_SERVICE_PORT=50051
     build:
       context: .
       dockerfile: Dockerfile
@@ -64,8 +68,10 @@ services:
     depends_on:
       - postgres
       - redis
+      - ner-service
     networks:
       - app_network
+      - backend
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -104,6 +110,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app_network
+      - backend
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 10s
@@ -119,6 +126,7 @@ services:
       - redis_data:/data
     networks:
       - app_network
+      - backend
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s

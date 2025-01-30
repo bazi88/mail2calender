@@ -48,7 +48,7 @@ type Config struct {
 	}
 
 	Session struct {
-		Name     string        `envconfig:"SESSION_SESSION_NAME" default:"session"`
+		Name     string        `envconfig:"SESSION_NAME" default:"session"`
 		Path     string        `envconfig:"SESSION_PATH" default:"/"`
 		Domain   string        `envconfig:"SESSION_DOMAIN"`
 		Duration time.Duration `envconfig:"SESSION_DURATION" default:"24h"`
@@ -66,13 +66,18 @@ type Config struct {
 	}
 
 	JWT struct {
-		Secret     string        `envconfig:"JWT_SECRET" required:"true"`
-		Expiration time.Duration `envconfig:"JWT_EXPIRATION" default:"24h"`
+		Secret     string        `envconfig:"API_JWT_SECRET" required:"true"`
+		Expiration time.Duration `envconfig:"API_JWT_EXPIRATION" default:"24h"`
 	}
 
 	Docker struct {
 		Image string `envconfig:"DOCKER_IMAGE" default:"go8/server"`
 		Tag   string `envconfig:"DOCKER_TAG" default:"latest"`
+	}
+
+	NER struct {
+		Host string `envconfig:"NER_SERVICE_HOST" default:"ner-service"`
+		Port int    `envconfig:"NER_SERVICE_PORT" default:"50051"`
 	}
 }
 

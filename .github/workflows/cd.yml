@@ -1,0 +1,48 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push API
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          your-org/mail2calendar-api:latest
+          your-org/mail2calendar-api:${{ github.ref_name }}
+
+    - name: Build and push NER
+      uses: docker/build-push-action@v4
+      with:
+        context: ./ner-service
+        push: true
+        tags: |
+          your-org/mail2calendar-ner:latest
+          your-org/mail2calendar-ner:${{ github.ref_name }}
+
+    - name: Deploy to production
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      run: |
+        echo "$DEPLOY_KEY" > deploy_key
+        chmod 600 deploy_key
+        ssh -i deploy_key -o StrictHostKeyChecking=no $DEPLOY_HOST "cd /opt/mail2calendar && docker-compose pull && docker-compose up -d" 
