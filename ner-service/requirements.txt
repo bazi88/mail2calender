@@ -1,10 +1,15 @@
 grpcio==1.59.0
 grpcio-tools==1.59.0
 grpcio-health-checking==1.60.0
-torch==2.1.2
-transformers==4.36.2
+torch==2.1.1
+transformers==4.35.2
 protobuf==4.24.4
 prometheus-client==0.17.1
 python-dotenv==1.0.0
 numpy<2.0.0
 sentencepiece==0.1.99
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.2
+spacy==3.7.2
+en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.1/en_core_web_trf-3.7.1-py3-none-any.whl
