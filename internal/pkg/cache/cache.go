@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -21,6 +22,33 @@ func NewWithCleanupInterval(interval time.Duration) *Cache {
 	}
 	go cache.startCleanup(interval)
 	return cache
+}
+
+func (c *Cache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	c.Lock()
+	defer c.Unlock()
+
+	c.items[key] = cacheItem{
+		value:      value,
+		expiration: time.Now().Add(expiration),
+	}
+	return nil
+}
+
+func (c *Cache) Get(ctx context.Context, key string) (interface{}, error) {
+	c.RLock()
+	defer c.RUnlock()
+
+	item, exists := c.items[key]
+	if !exists {
+		return nil, nil
+	}
+
+	if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+		return nil, nil
+	}
+
+	return item.value, nil
 }
 
 func (c *Cache) startCleanup(interval time.Duration) {
