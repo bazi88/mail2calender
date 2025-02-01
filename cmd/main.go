@@ -52,8 +52,9 @@ func main() {
 
 	// Khởi tạo server
 	server := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", cfg.API.Host, cfg.API.Port),
-		Handler: r,
+		Addr:              fmt.Sprintf("%s:%d", cfg.API.Host, cfg.API.Port),
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
 	// Channel để nhận signal

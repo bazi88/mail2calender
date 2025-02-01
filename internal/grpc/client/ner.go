@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -25,14 +24,14 @@ type NERClient struct {
 
 // NewNERClient creates a new NER service client
 func NewNERClient(cfg *config.Config) (*NERClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	address := fmt.Sprintf("%s:%d", cfg.NER.Host, cfg.NER.Port)
-	conn, err := grpc.DialContext(ctx, address,
+
+	// Create client using the recommended API
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-	)
+	}
+
+	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NER service: %v", err)
 	}
@@ -54,7 +53,7 @@ func (c *NERClient) ExtractEntities(ctx context.Context, text string) (*ner.Extr
 		return nil, fmt.Errorf("failed to extract entities: %v", err)
 	}
 
-	// Convert từ protobuf response sang domain response
+	// Convert protobuf response to domain response
 	entities := make([]*ner.Entity, len(resp.Entities))
 	for i, e := range resp.Entities {
 		entities[i] = &ner.Entity{

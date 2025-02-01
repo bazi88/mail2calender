@@ -16,5 +16,8 @@ func WriteError(w http.ResponseWriter, code int, err error) {
 func JSON(w http.ResponseWriter, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Log error since we can't return it after headers are sent
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

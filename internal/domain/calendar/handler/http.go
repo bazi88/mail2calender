@@ -29,7 +29,10 @@ func (h *HttpCalendarHandler) CreateEvent(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *HttpCalendarHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
@@ -41,5 +44,8 @@ func (h *HttpCalendarHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }

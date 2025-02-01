@@ -23,7 +23,9 @@ func TestRedisRateLimiter(t *testing.T) {
 	t.Run("Allow requests within limit", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			if _, err := w.Write([]byte("success")); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
 		})
 
 		middleware := rateLimiter.Limit(handler)
@@ -41,7 +43,9 @@ func TestRedisRateLimiter(t *testing.T) {
 	t.Run("Block requests over limit", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			if _, err := w.Write([]byte("success")); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
 		})
 
 		middleware := rateLimiter.Limit(handler)
@@ -69,7 +73,9 @@ func TestRedisRateLimiter(t *testing.T) {
 	t.Run("Reset limit after window", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			if _, err := w.Write([]byte("success")); err != nil {
+				t.Errorf("failed to write response: %v", err)
+			}
 		})
 
 		middleware := rateLimiter.Limit(handler)
