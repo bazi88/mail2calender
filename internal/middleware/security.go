@@ -134,3 +134,15 @@ func SecurityHeadersWithConfig(config *SecurityConfig) func(http.Handler) http.H
 		})
 	}
 }
+
+// SetSecurityHeaders thiết lập các tiêu đề bảo mật cho phản hồi
+func SetSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		// Thêm các tiêu đề khác nếu cần
+		next.ServeHTTP(w, r)
+	})
+}

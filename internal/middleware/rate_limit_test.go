@@ -111,3 +111,20 @@ func TestRedisRateLimiter(t *testing.T) {
 	redisClient.FlushAll(context.Background())
 	redisClient.Close()
 }
+
+func TestSetSecurityHeaders(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	handler := SetSecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	if res.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("Expected nosniff, got %s", res.Header.Get("X-Content-Type-Options"))
+	}
+	// Thêm các kiểm tra khác cho các tiêu đề bảo mật
+}

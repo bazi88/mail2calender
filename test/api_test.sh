@@ -72,6 +72,10 @@ for i in {1..5}; do
     test_api "/api/v1/ner/extract" "POST" '{"text":"Quick test for rate limit"}' 200
     sleep 1
 done
+
+# Kiểm tra tiêu đề bảo mật
+curl -I http://localhost:8080/api/endpoint | grep "X-Content-Type-Options"
+# Thêm các kiểm tra khác cho các tiêu đề bảo mật
 ```
 
 name: CI
