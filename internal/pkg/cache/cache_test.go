@@ -60,4 +60,21 @@ func TestCache(t *testing.T) {
 		_, err = cache.Get(ctx, "key2")
 		assert.Error(t, err)
 	})
+
+	t.Run("Expiration", func(t *testing.T) {
+		err := cache.Set(ctx, "key3", "value3", time.Millisecond)
+		assert.NoError(t, err)
+		time.Sleep(time.Millisecond * 2)
+		_, err = cache.Get(ctx, "key3")
+		assert.Error(t, err)
+	})
+}
+
+func TestNewWithCleanupInterval(t *testing.T) {
+	cache := NewWithCleanupInterval(time.Millisecond)
+	err := cache.Set(context.Background(), "key", "value", time.Millisecond)
+	assert.NoError(t, err)
+	time.Sleep(time.Millisecond * 3)
+	_, err = cache.Get(context.Background(), "key")
+	assert.Error(t, err)
 }
