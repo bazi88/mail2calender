@@ -95,17 +95,3 @@ func TestSetSecurityHeaders(t *testing.T) {
 	}
 	// Thêm các kiểm tra khác cho các tiêu đề bảo mật
 }
-
-// Kiểm tra cấu hình rate limit
-func TestRateLimit(t *testing.T) {
-	// ... existing code ...
-
-	// Thêm timeout dài hơn để tránh flaky tests
-	time.Sleep(2 * time.Second)
-
-	// Thêm cleanup sau mỗi test
-	t.Cleanup(func() {
-		// cleanup code
-	})
-	// ... existing code ...
-}

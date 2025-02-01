@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSecurityConfig(t *testing.T) {
+func TestSecurityConfigValidation(t *testing.T) {
 	t.Run("JWT Config", func(t *testing.T) {
 		cfg := &SecurityConfig{
 			JWT: JWTConfig{
