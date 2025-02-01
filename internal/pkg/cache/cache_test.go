@@ -2,43 +2,16 @@ package cache
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type MemoryCache struct {
-	data sync.Map
-}
-
-func NewMemoryCache() *MemoryCache {
-	return &MemoryCache{}
-}
-
-func (c *MemoryCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
-	c.data.Store(key, value)
-	return nil
-}
-
-func (c *MemoryCache) Get(ctx context.Context, key string) (interface{}, error) {
-	if value, ok := c.data.Load(key); ok {
-		return value, nil
-	}
-	return nil, ErrKeyNotFound
-}
-
-func (c *MemoryCache) Delete(ctx context.Context, key string) error {
-	c.data.Delete(key)
-	return nil
-}
-
-var ErrKeyNotFound = errors.New("key not found")
-
 func TestCache(t *testing.T) {
-	cache := NewMemoryCache()
+	cache := &Cache{
+		items: make(map[string]cacheItem),
+	}
 	ctx := context.Background()
 
 	t.Run("Set and Get", func(t *testing.T) {
@@ -58,15 +31,16 @@ func TestCache(t *testing.T) {
 		assert.NoError(t, err)
 
 		_, err = cache.Get(ctx, "key2")
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrKeyNotFound)
 	})
 
 	t.Run("Expiration", func(t *testing.T) {
 		err := cache.Set(ctx, "key3", "value3", time.Millisecond)
 		assert.NoError(t, err)
+
 		time.Sleep(time.Millisecond * 2)
 		_, err = cache.Get(ctx, "key3")
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrKeyNotFound)
 	})
 }
 
@@ -74,7 +48,8 @@ func TestNewWithCleanupInterval(t *testing.T) {
 	cache := NewWithCleanupInterval(time.Millisecond)
 	err := cache.Set(context.Background(), "key", "value", time.Millisecond)
 	assert.NoError(t, err)
-	time.Sleep(time.Millisecond * 3)
+
+	time.Sleep(time.Millisecond * 3) // Wait for cleanup
 	_, err = cache.Get(context.Background(), "key")
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 }

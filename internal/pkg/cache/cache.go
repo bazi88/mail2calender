@@ -2,9 +2,12 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 )
+
+var ErrKeyNotFound = errors.New("key not found")
 
 type cacheItem struct {
 	value      interface{}
@@ -41,14 +44,22 @@ func (c *Cache) Get(ctx context.Context, key string) (interface{}, error) {
 
 	item, exists := c.items[key]
 	if !exists {
-		return nil, nil
+		return nil, ErrKeyNotFound
 	}
 
 	if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
-		return nil, nil
+		delete(c.items, key) // Clean up expired item
+		return nil, ErrKeyNotFound
 	}
 
 	return item.value, nil
+}
+
+func (c *Cache) Delete(ctx context.Context, key string) error {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.items, key)
+	return nil
 }
 
 func (c *Cache) startCleanup(interval time.Duration) {
