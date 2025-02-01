@@ -121,8 +121,7 @@ func SecurityHeadersWithConfig(config *SecurityConfig) func(http.Handler) http.H
 				"X-Frame-Options":           config.FrameOptions,
 				"X-Content-Type-Options":    config.XContentTypeOptions,
 				"Referrer-Policy":           config.ReferrerPolicy,
-				"Permissions-Policy":        config.PermissionsPolicy,
-				"Feature-Policy":            buildFeaturePolicy(config.FeaturePolicy),
+				"Permissions-Policy":        buildFeaturePolicy(config.FeaturePolicy),
 			}
 
 			// Add custom headers
