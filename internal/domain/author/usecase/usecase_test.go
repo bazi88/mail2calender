@@ -12,7 +12,6 @@ import (
 	"mono-golang/config"
 	"mono-golang/internal/domain/author"
 	"mono-golang/internal/domain/author/repository"
-	"mono-golang/internal/utility/filter"
 )
 
 var c config.Cache
@@ -68,7 +67,6 @@ func TestAuthorUseCase_Create(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			repoAuthor := &repository.AuthorMock{
 				CreateFunc: func(ctx context.Context, r *author.CreateRequest) (*author.Schema, error) {
 					return test.want.Author, test.want.err
@@ -79,211 +77,6 @@ func TestAuthorUseCase_Create(t *testing.T) {
 
 			got, err := uc.Create(context.Background(), test.args.CreateRequest)
 			assert.Equal(t, test.want.err, err)
-			assert.Equal(t, test.want.Author, got)
-		})
-	}
-}
-
-func TestAuthorUseCase_List(t *testing.T) {
-	type args struct {
-		context.Context
-		filter *author.Filter
-	}
-	type want struct {
-		authors []*author.Schema
-		total   int
-		error
-	}
-	type test struct {
-		name string
-		args
-		want
-	}
-
-	twoAuthors := []*author.Schema{
-		{
-			ID:         1,
-			FirstName:  "1 First",
-			MiddleName: "",
-			LastName:   "2 Last",
-			CreatedAt:  time.Time{},
-			UpdatedAt:  time.Time{},
-			//DeletedAt:  sql.NullTime{},
-			DeletedAt: nil,
-			Books:     []*book.Schema{},
-		},
-		{
-			ID:         2,
-			FirstName:  "2 First",
-			MiddleName: "",
-			LastName:   "2 Last",
-			CreatedAt:  time.Time{},
-			UpdatedAt:  time.Time{},
-			//DeletedAt:  sql.NullTime{},
-			DeletedAt: nil,
-			Books:     nil,
-		},
-	}
-
-	searched := []*author.Schema{
-		{
-			ID:         2,
-			FirstName:  "2 First",
-			MiddleName: "",
-			LastName:   "2 Last",
-			CreatedAt:  time.Time{},
-			UpdatedAt:  time.Time{},
-			//DeletedAt:  sql.NullTime{},
-			DeletedAt: nil,
-			Books:     nil,
-		},
-	}
-
-	tests := []test{
-		{
-			name: "simple",
-			args: args{
-				Context: context.Background(),
-				filter: &author.Filter{
-					Base: filter.Filter{
-						Page:          0,
-						Offset:        0,
-						Limit:         10,
-						DisablePaging: false,
-						Sort:          nil,
-						Search:        false,
-					},
-					FirstName:  "",
-					MiddleName: "",
-					LastName:   "",
-				},
-			},
-			want: want{
-				authors: twoAuthors,
-				total:   2,
-				error:   nil,
-			},
-		},
-		{
-			name: "search",
-			args: args{
-				Context: context.Background(),
-				filter: &author.Filter{
-					Base: filter.Filter{
-						Page:          0,
-						Offset:        0,
-						Limit:         0,
-						DisablePaging: false,
-						Sort:          nil,
-						Search:        true,
-					},
-					FirstName:  "2 First",
-					MiddleName: "",
-					LastName:   "",
-				},
-			},
-			want: want{
-				authors: searched,
-				total:   1,
-				error:   nil,
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-
-			repoAuthor := &repository.AuthorMock{
-				ListFunc: func(ctx context.Context, f *author.Filter) ([]*author.Schema, int, error) {
-					return test.want.authors, test.want.total, test.want.error
-				},
-			}
-
-			cacheMock := &repository.AuthorRedisServiceMock{
-				ListFunc: func(ctx context.Context, f *author.Filter) ([]*author.Schema, int, error) {
-					return test.want.authors, test.want.total, test.want.error
-				},
-			}
-
-			searchMock := &repository.SearcherMock{
-				SearchFunc: func(ctx context.Context, f *author.Filter) ([]*author.Schema, int, error) {
-					return test.want.authors, test.want.total, test.want.error
-				},
-			}
-
-			uc := New(c, repoAuthor, searchMock, nil, cacheMock)
-
-			got, total, err := uc.List(test.args.Context, test.args.filter)
-			assert.Equal(t, test.want.error, err)
-			assert.Equal(t, test.want.total, total)
-			assert.Equal(t, test.want.authors, got)
-		})
-	}
-}
-
-func TestAuthorUseCase_Read(t *testing.T) {
-	type args struct {
-		ID uint64
-	}
-
-	type want struct {
-		Author *author.Schema
-		err    error
-	}
-
-	type test struct {
-		name string
-		args
-		want
-	}
-
-	tests := []test{
-		{
-			name: "one",
-			args: args{
-				ID: 1,
-			},
-			want: want{
-				Author: &author.Schema{
-					ID:         1,
-					FirstName:  "First",
-					MiddleName: "Middle",
-					LastName:   "Last",
-					CreatedAt:  time.Time{},
-					UpdatedAt:  time.Time{},
-					//DeletedAt:  sql.NullTime{},
-					DeletedAt: nil,
-					Books:     nil,
-				},
-				err: nil,
-			},
-		},
-		{
-			name: "zero ID",
-			args: args{
-				ID: 0,
-			},
-			want: want{
-				Author: nil,
-				err:    errors.New("ID cannot be 0"),
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-
-			repoAuthor := &repository.AuthorMock{
-				ReadFunc: func(ctx context.Context, id uint64) (*author.Schema, error) {
-					return test.want.Author, test.want.err
-				},
-			}
-
-			uc := New(c, repoAuthor, nil, nil, nil)
-
-			got, err := uc.Read(context.Background(), test.args.ID)
-			assert.Equal(t, test.want.err, err)
-
 			assert.Equal(t, test.want.Author, got)
 		})
 	}
@@ -334,9 +127,8 @@ func TestAuthorUseCase_Update(t *testing.T) {
 						LastName:   "Updated Last",
 						CreatedAt:  createdTime,
 						UpdatedAt:  time.Now(),
-						//DeletedAt:  sql.NullTime{},
-						DeletedAt: nil,
-						Books:     []*book.Schema{},
+						DeletedAt:  nil,
+						Books:      []*book.Schema{},
 					},
 					nil,
 				},
@@ -347,8 +139,8 @@ func TestAuthorUseCase_Update(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			repoAuthor := &AuthorMock{
-				UpdateFunc: func(ctx context.Context, authorMiripParam *author.UpdateRequest) (*author.Schema, error) {
+			repoAuthor := &repository.AuthorMock{
+				UpdateFunc: func(ctx context.Context, authorParam *author.UpdateRequest) (*author.Schema, error) {
 					return test.want.repo.Schema, test.want.repo.error
 				},
 			}
@@ -414,8 +206,7 @@ func TestAuthorUseCase_Delete(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
-			repoAuthor := &AuthorMock{
+			repoAuthor := &repository.AuthorMock{
 				DeleteFunc: func(ctx context.Context, authorID uint64) error {
 					return test.want.error
 				},

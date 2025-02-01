@@ -1,79 +1,96 @@
 package middleware
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestRateLimiter(t *testing.T) {
-	// Khởi tạo miniredis
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	defer mr.Close()
-
-	// Tạo Redis client kết nối đến miniredis
+func TestRedisRateLimiter(t *testing.T) {
+	// Ensure Redis is clean before starting tests
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: mr.Addr(),
-		DB:   0,
+		Addr: "localhost:6379",
 	})
-	defer redisClient.Close()
+	redisClient.FlushAll(context.Background())
 
-	// Tạo rate limiter cho test (3 requests/second)
-	rateLimiter := NewRedisRateLimiter(redisClient, 3, time.Second, "test")
+	rateLimiter := NewRedisRateLimiter(redisClient, 2, time.Second)
 
-	// Handler đơn giản để test
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	t.Run("Allow requests within limit", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("success"))
+		})
 
-	// Test case 1: Trong giới hạn
-	t.Run("Within limit", func(t *testing.T) {
-		for i := 0; i < 3; i++ {
-			req := httptest.NewRequest("GET", "/test", nil)
-			rr := httptest.NewRecorder()
+		middleware := rateLimiter.Limit(handler)
 
-			rateLimiter.RateLimit(handler).ServeHTTP(rr, req)
-
-			assert.Equal(t, http.StatusOK, rr.Code)
-			assert.Equal(t, "3", rr.Header().Get("X-RateLimit-Limit"))
-			remaining := fmt.Sprintf("%d", 2-i)
-			assert.Equal(t, remaining, rr.Header().Get("X-RateLimit-Remaining"))
+		// Make two requests - both should succeed
+		for i := 0; i < 2; i++ {
+			req := httptest.NewRequest(http.MethodGet, "/test-allow", nil)
+			rec := httptest.NewRecorder()
+			middleware.ServeHTTP(rec, req)
+			assert.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, "success", rec.Body.String())
 		}
 	})
 
-	// Test case 2: Vượt quá giới hạn
-	t.Run("Exceeds limit", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/test", nil)
-		rr := httptest.NewRecorder()
+	t.Run("Block requests over limit", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("success"))
+		})
 
-		rateLimiter.RateLimit(handler).ServeHTTP(rr, req)
+		middleware := rateLimiter.Limit(handler)
 
-		assert.Equal(t, http.StatusTooManyRequests, rr.Code)
-		assert.Equal(t, "3", rr.Header().Get("X-RateLimit-Limit"))
-		assert.Equal(t, "-1", rr.Header().Get("X-RateLimit-Remaining"))
-		assert.NotEmpty(t, rr.Header().Get("X-RateLimit-Reset"))
+		// Make three requests - third one should be blocked
+		for i := 0; i < 3; i++ {
+			req := httptest.NewRequest(http.MethodGet, "/test-block", nil)
+			rec := httptest.NewRecorder()
+
+			middleware.ServeHTTP(rec, req)
+
+			if i < 2 {
+				// First two requests should succeed
+				assert.Equal(t, http.StatusOK, rec.Code, "Request %d should succeed", i+1)
+				assert.Equal(t, "success", rec.Body.String())
+			} else {
+				// Third request should be blocked
+				assert.Equal(t, http.StatusTooManyRequests, rec.Code, "Request %d should be blocked", i+1)
+				assert.Contains(t, rec.Body.String(), "Too Many Requests")
+				assert.NotEmpty(t, rec.Header().Get("Retry-After"))
+			}
+		}
 	})
 
-	// Test case 3: Reset sau khi hết thời gian
-	t.Run("Reset after duration", func(t *testing.T) {
-		// Fast-forward thời gian trong miniredis
-		mr.FastForward(time.Second)
+	t.Run("Reset limit after window", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("success"))
+		})
 
-		req := httptest.NewRequest("GET", "/test", nil)
-		rr := httptest.NewRecorder()
+		middleware := rateLimiter.Limit(handler)
 
-		rateLimiter.RateLimit(handler).ServeHTTP(rr, req)
+		// First request
+		req := httptest.NewRequest(http.MethodGet, "/test-reset", nil)
+		rec := httptest.NewRecorder()
+		middleware.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
 
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, "3", rr.Header().Get("X-RateLimit-Limit"))
-		assert.Equal(t, "2", rr.Header().Get("X-RateLimit-Remaining"))
+		// Wait for the rate limit window to expire
+		time.Sleep(time.Second)
+
+		// Should be allowed after window expires
+		req = httptest.NewRequest(http.MethodGet, "/test-reset", nil)
+		rec = httptest.NewRecorder()
+		middleware.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
 	})
+
+	// Clean up Redis after all tests
+	redisClient.FlushAll(context.Background())
+	redisClient.Close()
 }

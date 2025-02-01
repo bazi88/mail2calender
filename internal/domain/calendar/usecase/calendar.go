@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	calendarPb "mono-golang/internal/domain/calendar/proto"
+	"mono-golang/internal/domain/ner"
 	nerClient "mono-golang/internal/grpc/client"
-	nerPb "mono-golang/ner-service/protos/ner"
 )
 
 type calendarUseCase struct {
@@ -30,13 +30,13 @@ func (u *calendarUseCase) CreateEvent(ctx context.Context, event *calendarPb.Eve
 
 	// Extract entities from event description if provided
 	if event.Description != "" {
-		entities, err := u.nerClient.ExtractEntities(ctx, event.Description, "en")
+		entities, err := u.nerClient.ExtractEntities(ctx, event.Description)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract entities: %v", err)
 		}
 
 		// Update event fields based on extracted entities
-		u.updateEventWithEntities(event, entities)
+		u.updateEventWithEntities(event, entities.Entities)
 	}
 
 	// Here you would typically save the event to a database
@@ -121,9 +121,9 @@ func (u *calendarUseCase) validateEvent(event *calendarPb.Event) error {
 	return nil
 }
 
-func (u *calendarUseCase) updateEventWithEntities(event *calendarPb.Event, entities []*nerPb.Entity) {
+func (u *calendarUseCase) updateEventWithEntities(event *calendarPb.Event, entities []*ner.Entity) {
 	for _, entity := range entities {
-		switch entity.Type {
+		switch entity.Label {
 		case "LOCATION":
 			if event.Location == "" {
 				event.Location = entity.Text

@@ -45,7 +45,7 @@ func main() {
 	r := chi.NewRouter()
 
 	// Khởi tạo rate limiter
-	rateLimiter := middleware.DefaultRateLimiter(redisClient)
+	rateLimiter := middleware.NewRedisRateLimiter(redisClient, 10, time.Minute)
 
 	// Đăng ký routes
 	handler.Register(r, nerUseCase, rateLimiter)
