@@ -6,65 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"mono-golang/internal/pkg/security"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 )
 
-type SecurityConfig struct {
-	HSTSMaxAge            int
-	HSTSIncludeSubdomains bool
-	CSPDirectives         map[string][]string
-	FrameOptions          string
-	XContentTypeOptions   string
-	ReferrerPolicy        string
-	CustomHeaders         map[string]string
-}
-
-type RateLimitConfig struct {
-	Requests int
-	Window   time.Duration
-}
-
-type CORSConfig struct {
-	AllowOrigins []string
-	AllowMethods []string
-	AllowHeaders []string
-	MaxAge       int
-}
-
-func SecurityHeadersWithConfig(cfg *SecurityConfig) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func RateLimit(cfg *RateLimitConfig) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Implementation
-		c.Next()
-	}
-}
-
-func CORS(cfg *CORSConfig) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Implementation
-		c.Next()
-	}
-}
-
 func TestSecurityHeaders(t *testing.T) {
 	tests := []struct {
 		name            string
-		config          *SecurityConfig
+		config          *security.SecurityConfig
 		expectedHeaders map[string]string
 	}{
 		{
 			name: "Default Config",
-			config: &SecurityConfig{
+			config: &security.SecurityConfig{
 				HSTSMaxAge:            31536000,
 				HSTSIncludeSubdomains: true,
 				CSPDirectives: map[string][]string{
@@ -90,7 +47,7 @@ func TestSecurityHeaders(t *testing.T) {
 		},
 		{
 			name: "Custom Config",
-			config: &SecurityConfig{
+			config: &security.SecurityConfig{
 				HSTSMaxAge:            3600,
 				HSTSIncludeSubdomains: false,
 				CSPDirectives: map[string][]string{
