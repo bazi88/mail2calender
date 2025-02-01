@@ -57,6 +57,7 @@ func TestBookUseCase_Create(t *testing.T) {
 	useCase := New(repo)
 
 	t.Run("Success", func(t *testing.T) {
+		repo.Mock = mock.Mock{} // Reset mock
 		publishedDate := time.Now().Format("2006-01-02")
 		req := &book.CreateRequest{
 			Title:         "Test Book",
@@ -83,6 +84,7 @@ func TestBookUseCase_Create(t *testing.T) {
 	})
 
 	t.Run("Create Error", func(t *testing.T) {
+		repo.Mock = mock.Mock{} // Reset mock
 		publishedDate := time.Now().Format("2006-01-02")
 		req := &book.CreateRequest{
 			Title:         "Test Book",
@@ -93,6 +95,7 @@ func TestBookUseCase_Create(t *testing.T) {
 
 		expectedErr := errors.New("db error")
 		repo.On("Create", ctx, req).Return(uint64(0), expectedErr)
+		// Don't expect Read call since Create returns error
 
 		result, err := useCase.Create(ctx, req)
 		assert.Error(t, err)
@@ -186,6 +189,7 @@ func TestBookUseCase_Update(t *testing.T) {
 	useCase := New(repo)
 
 	t.Run("Success", func(t *testing.T) {
+		repo.Mock = mock.Mock{} // Reset mock
 		publishedDate := time.Now().Format("2006-01-02")
 		req := &book.UpdateRequest{
 			ID:            1,
@@ -213,6 +217,7 @@ func TestBookUseCase_Update(t *testing.T) {
 	})
 
 	t.Run("Update Error", func(t *testing.T) {
+		repo.Mock = mock.Mock{} // Reset mock
 		publishedDate := time.Now().Format("2006-01-02")
 		req := &book.UpdateRequest{
 			ID:            1,
@@ -224,6 +229,7 @@ func TestBookUseCase_Update(t *testing.T) {
 
 		expectedErr := errors.New("db error")
 		repo.On("Update", ctx, req).Return(expectedErr)
+		// Don't expect Read call since Update returns error
 
 		result, err := useCase.Update(ctx, req)
 		assert.Error(t, err)

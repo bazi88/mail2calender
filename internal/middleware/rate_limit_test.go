@@ -6,14 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRedisRateLimiter(t *testing.T) {
-	// Setup Redis client
+	// Setup mock Redis server
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mr.Close()
+
+	// Create Redis client connected to mock server
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: mr.Addr(),
 		DB:   0,
 	})
 	defer redisClient.Close()
@@ -46,7 +54,7 @@ func TestRedisRateLimiter(t *testing.T) {
 	})
 
 	t.Run("Reset limit after window", func(t *testing.T) {
-		time.Sleep(time.Second)
+		mr.FastForward(time.Second)
 
 		req := httptest.NewRequest("GET", "/test", nil)
 		rr := httptest.NewRecorder()

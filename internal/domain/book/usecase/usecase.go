@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 
 	"mono-golang/internal/domain/book"
 	"mono-golang/internal/domain/book/repository"
@@ -32,11 +33,14 @@ func (u *BookUseCase) Create(ctx context.Context, book *book.CreateRequest) (*bo
 	if err != nil {
 		return nil, err
 	}
+	if bookID == 0 {
+		return nil, errors.New("failed to create book: invalid ID")
+	}
 	bookFound, err := u.bookRepo.Read(ctx, bookID)
 	if err != nil {
 		return nil, err
 	}
-	return bookFound, err
+	return bookFound, nil
 }
 
 func (u *BookUseCase) List(ctx context.Context, f *book.Filter) ([]*book.Schema, error) {
@@ -48,6 +52,9 @@ func (u *BookUseCase) Read(ctx context.Context, bookID uint64) (*book.Schema, er
 }
 
 func (u *BookUseCase) Update(ctx context.Context, book *book.UpdateRequest) (*book.Schema, error) {
+	if book.ID == 0 {
+		return nil, errors.New("invalid book ID")
+	}
 	err := u.bookRepo.Update(ctx, book)
 	if err != nil {
 		return nil, err
