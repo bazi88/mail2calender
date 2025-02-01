@@ -11,8 +11,6 @@ import (
 )
 
 func TestSecurityHeaders(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	tests := []struct {
 		name            string
 		config          *SecurityConfig
@@ -21,28 +19,40 @@ func TestSecurityHeaders(t *testing.T) {
 		{
 			name: "Default Config",
 			config: &SecurityConfig{
-				CSP:                "default-src 'self'; script-src 'self'; style-src 'self'",
-				HSTS:               "max-age=31536000; includeSubDomains",
-				XFrameOptions:      "DENY",
-				XSSProtection:      "1; mode=block",
-				ContentTypeOptions: "nosniff",
-				ReferrerPolicy:     "strict-origin-when-cross-origin",
+				HSTSMaxAge:            31536000,
+				HSTSIncludeSubdomains: true,
+				CSPDirectives: map[string][]string{
+					"default-src": {"'self'"},
+					"script-src":  {"'self'"},
+					"style-src":   {"'self'"},
+				},
+				FrameOptions:        "DENY",
+				XContentTypeOptions: "nosniff",
+				ReferrerPolicy:      "strict-origin-when-cross-origin",
+				CustomHeaders: map[string]string{
+					"X-XSS-Protection": "1; mode=block",
+				},
 			},
 			expectedHeaders: map[string]string{
 				"Content-Security-Policy":   "default-src 'self'; script-src 'self'; style-src 'self'",
 				"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 				"X-Frame-Options":           "DENY",
-				"X-XSS-Protection":          "1; mode=block",
 				"X-Content-Type-Options":    "nosniff",
 				"Referrer-Policy":           "strict-origin-when-cross-origin",
+				"X-XSS-Protection":          "1; mode=block",
 			},
 		},
 		{
 			name: "Custom Config",
 			config: &SecurityConfig{
-				CSP:           "default-src 'self' https://api.example.com; script-src 'self' https://cdn.example.com",
-				HSTS:          "max-age=3600",
-				XFrameOptions: "SAMEORIGIN",
+				HSTSMaxAge:            3600,
+				HSTSIncludeSubdomains: false,
+				CSPDirectives: map[string][]string{
+					"default-src": {"'self'", "https://api.example.com"},
+					"script-src":  {"'self'", "https://cdn.example.com"},
+				},
+				FrameOptions:        "SAMEORIGIN",
+				XContentTypeOptions: "nosniff",
 				CustomHeaders: map[string]string{
 					"X-Custom-Header": "test-value",
 				},
@@ -51,6 +61,7 @@ func TestSecurityHeaders(t *testing.T) {
 				"Content-Security-Policy":   "default-src 'self' https://api.example.com; script-src 'self' https://cdn.example.com",
 				"Strict-Transport-Security": "max-age=3600",
 				"X-Frame-Options":           "SAMEORIGIN",
+				"X-Content-Type-Options":    "nosniff",
 				"X-Custom-Header":           "test-value",
 			},
 		},
@@ -58,19 +69,17 @@ func TestSecurityHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := gin.New()
-			router.Use(SecurityHeaders(tt.config))
-			router.GET("/test", func(c *gin.Context) {
-				c.String(http.StatusOK, "test")
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
 			})
 
-			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/test", nil)
-			router.ServeHTTP(w, req)
+			rr := httptest.NewRecorder()
 
-			assert.Equal(t, http.StatusOK, w.Code)
-			for key, value := range tt.expectedHeaders {
-				assert.Equal(t, value, w.Header().Get(key))
+			SecurityHeadersWithConfig(tt.config)(handler).ServeHTTP(rr, req)
+
+			for key, expectedValue := range tt.expectedHeaders {
+				assert.Equal(t, expectedValue, rr.Header().Get(key))
 			}
 		})
 	}
