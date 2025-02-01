@@ -16,7 +16,18 @@ func TestRedisRateLimiter(t *testing.T) {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
-	redisClient.FlushAll(context.Background())
+
+	// Kiểm tra kết nối Redis
+	_, err := redisClient.Ping(context.Background()).Result()
+	if err != nil {
+		t.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	// Xóa tất cả key trước khi test
+	err = redisClient.FlushAll(context.Background()).Err()
+	if err != nil {
+		t.Fatalf("Failed to flush Redis: %v", err)
+	}
 
 	rateLimiter := NewRedisRateLimiter(redisClient, 2, time.Second)
 
