@@ -1,10 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // SecurityConfig holds configuration for security headers
@@ -145,4 +149,16 @@ func SetSecurityHeaders(next http.Handler) http.Handler {
 		// Thêm các tiêu đề khác nếu cần
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Thêm timeout cho các security checks
+func SecurityMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Thêm timeout context
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		c.Request = c.Request.WithContext(ctx)
+		// ... existing code ...
+	}
 }

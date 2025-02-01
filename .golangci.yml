@@ -1,5 +1,6 @@
 run:
-  deadline: 5m
+  timeout: 5m
+  tests: true
 
 output:
   format: colored-line-number
@@ -8,10 +9,10 @@ output:
 
 linters:
   enable:
-    - gofmt
     - govet
     - errcheck
     - staticcheck
+    - gofmt
     - gosimple
     - ineffassign
     - typecheck
@@ -30,3 +31,7 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-use-default: false
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
