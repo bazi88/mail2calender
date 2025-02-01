@@ -56,12 +56,37 @@ func BuildCSP(directives map[string][]string) string {
 		return ""
 	}
 
+	// Define the order of CSP directives
+	orderedDirectives := []string{
+		"default-src",
+		"script-src",
+		"style-src",
+		// Add other directives in desired order
+	}
+
 	var policies []string
-	for directive, sources := range directives {
-		if len(sources) > 0 {
+	// First add directives in specified order
+	for _, directive := range orderedDirectives {
+		if sources, exists := directives[directive]; exists && len(sources) > 0 {
 			policies = append(policies, fmt.Sprintf("%s %s", directive, strings.Join(sources, " ")))
 		}
 	}
+
+	// Then add any remaining directives
+	for directive, sources := range directives {
+		// Skip if already processed
+		isOrdered := false
+		for _, orderedDirective := range orderedDirectives {
+			if directive == orderedDirective {
+				isOrdered = true
+				break
+			}
+		}
+		if !isOrdered && len(sources) > 0 {
+			policies = append(policies, fmt.Sprintf("%s %s", directive, strings.Join(sources, " ")))
+		}
+	}
+
 	return strings.Join(policies, "; ")
 }
 
