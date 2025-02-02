@@ -8,11 +8,9 @@ This document outlines the CI/CD setup for the Mail2Calendar project using GitHu
 1. Path Configuration Issues:
    - Golangci-lint path prefix is incorrectly set to "go8"
    - Codecov upload path is incorrect
-   - Deployment path is hardcoded to incorrect location
 
 2. Missing Features:
    - Environment variables validation
-   - Development environment deployment
    - Proper caching strategy
    - Comprehensive testing coverage
 
@@ -23,9 +21,6 @@ Configure these in your repository settings (Settings > Secrets and variables > 
 ```
 DOCKERHUB_USERNAME: Your Docker Hub username
 DOCKERHUB_TOKEN: Your Docker Hub access token
-DEPLOY_HOST: Your production server IP/hostname
-DEPLOY_USER: SSH username for deployment
-DEPLOY_KEY: SSH private key for deployment
 ```
 
 ## Pipeline Stages
@@ -79,29 +74,9 @@ build:
   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 ```
 
-### 4. Deploy Stage
-```yaml
-deploy:
-  name: Deploy to Production
-  needs: build
-  runs-on: ubuntu-latest
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-```
-
 ## Recommended Improvements
 
-1. **Environment Validation**
-   Add pre-deployment environment validation:
-   ```yaml
-   - name: Validate Environment
-     run: |
-       if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
-         echo "Error: DEPLOY_HOST is not set"
-         exit 1
-       fi
-   ```
-
-2. **Enhanced Testing**
+1. **Enhanced Testing**
    Add integration and e2e tests:
    ```yaml
    - name: Run Integration Tests
@@ -111,15 +86,7 @@ deploy:
      run: cd e2e && go test -v ./...
    ```
 
-3. **Multi-Environment Support**
-   Add staging environment:
-   ```yaml
-   deploy-staging:
-     if: github.ref == 'refs/heads/develop'
-     # Similar to production deployment but with staging secrets
-   ```
-
-4. **Proper Caching**
+2. **Proper Caching**
    Implement better caching strategy:
    ```yaml
    - uses: actions/cache@v3
@@ -137,7 +104,7 @@ deploy:
    mkdir -p .github/workflows
    ```
 
-2. Copy the improved CI/CD configuration into `.github/workflows/ci-cd.yml`
+2. Copy the CI/CD configuration into `.github/workflows/ci-cd.yml`
 
 3. Configure GitHub Secrets:
    - Go to repository Settings > Secrets and variables > Actions
@@ -159,12 +126,11 @@ deploy:
 2. **Security**
    - Regular dependency updates
    - Scan Docker images for vulnerabilities
-   - Rotate secrets periodically
    - Use minimal base images
 
 3. **Monitoring**
    - Add status badges to README
-   - Monitor deployment success rates
+   - Monitor build success rates
    - Track test coverage
    - Alert on pipeline failures
 
@@ -181,11 +147,6 @@ Common issues and solutions:
    - Check database connection settings
    - Verify environment variables
    - Review test logs for timeout issues
-
-3. **Deployment Issues**
-   - Verify SSH key permissions
-   - Check server connectivity
-   - Review deployment logs
 
 ## Maintenance
 

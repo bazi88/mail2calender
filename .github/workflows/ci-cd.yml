@@ -139,38 +139,3 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:latest,${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
-
-  deploy:
-    name: Deploy to Production
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Setup Tailscale
-        run: |
-          # Install Tailscale non-interactively
-          curl -fsSL https://tailscale.com/install.sh | sh -s -- --non-interactive
-          
-          # Connect with root privileges using sudo
-          sudo tailscale up \
-            --authkey ${{ secrets.TAILSCALE_AUTHKEY }} \
-            --hostname github-actions-runner
-          
-          # Check connection status with sudo
-          sudo tailscale status
-
-      - name: Deploy to production
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.TAILSCALE_HOST }}  # Using MagicDNS hostname
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: 22
-          script: |
-            cd ~/apps/mail2calendar
-            docker compose pull
-            docker compose up -d
