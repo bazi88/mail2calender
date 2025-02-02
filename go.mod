@@ -1,11 +1,11 @@
 module mono-golang
 
-go 1.23.0
+go 1.22.7
 
-toolchain go1.23.4
+toolchain go1.22.11
 
 require (
-	entgo.io/ent v0.14.1
+	entgo.io/ent v0.12.5
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -41,7 +41,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
 	golang.org/x/mod v0.20.0
-	google.golang.org/grpc v1.69.0-dev
+	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2
 )
 
@@ -95,11 +95,8 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jwalton/go-supportscolor v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
-	github.com/labstack/echo/v4 v4.13.3 // indirect
-	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
@@ -119,8 +116,6 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

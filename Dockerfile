@@ -1,11 +1,13 @@
 # Cache dependencies stage
-FROM golang:1.22-alpine AS deps
+FROM golang:1.22.7-alpine AS deps
+RUN apk add --no-cache git gcc musl-dev
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.22.7-alpine AS builder
+RUN apk add --no-cache git gcc musl-dev
 WORKDIR /app
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY . .
@@ -30,7 +32,6 @@ WORKDIR /app
 
 COPY --from=builder /app/main /app/main
 COPY --from=builder /app/config /app/config
-COPY --from=builder /app/.env.example /app/.env.example
 
 ENV GO_ENV=production \
     TZ=UTC \

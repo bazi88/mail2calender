@@ -4,7 +4,6 @@ package enttest
 
 import (
 	"context"
-
 	"mono-golang/ent/gen"
 	// required by schema hooks.
 	_ "mono-golang/ent/gen/runtime"
