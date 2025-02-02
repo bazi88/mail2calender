@@ -150,21 +150,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Connect Tailscale
+      - name: Setup Tailscale
         run: |
+          # Install Tailscale non-interactively
           curl -fsSL https://tailscale.com/install.sh | sh -s -- --non-interactive
-          tailscale up --authkey ${{ secrets.TAILSCALE_AUTHKEY }}
-          echo "TAILSCALE_IP=$(tailscale status --json | jq -r '.Self.TailscaleIPs[0]')" >> $GITHUB_ENV
+          
+          # Connect with user privileges and operator flag
+          tailscale up \
+            --authkey ${{ secrets.TAILSCALE_AUTHKEY }} \
+            --hostname github-actions-runner \
+            --operator=$USER
+          
+          # Check connection status
+          tailscale status
 
       - name: Deploy to production
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ env.TAILSCALE_IP }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.TAILSCALE_HOST }}  # Using MagicDNS hostname
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
           port: 22
           script: |
             cd ~/apps/mail2calendar
