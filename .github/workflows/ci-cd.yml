@@ -155,14 +155,13 @@ jobs:
           # Install Tailscale non-interactively
           curl -fsSL https://tailscale.com/install.sh | sh -s -- --non-interactive
           
-          # Connect with user privileges and operator flag
-          tailscale up \
+          # Connect with root privileges using sudo
+          sudo tailscale up \
             --authkey ${{ secrets.TAILSCALE_AUTHKEY }} \
-            --hostname github-actions-runner \
-            --operator=$USER
+            --hostname github-actions-runner
           
-          # Check connection status
-          tailscale status
+          # Check connection status with sudo
+          sudo tailscale status
 
       - name: Deploy to production
         uses: appleboy/ssh-action@master
