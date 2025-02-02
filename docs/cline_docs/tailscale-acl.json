@@ -1,0 +1,9 @@
+{
+  "acls": [
+    {
+      "action": "accept",
+      "users": ["tag:github-actions"],
+      "ports": ["tag:your-server:22"]
+    }
+  ]
+}
