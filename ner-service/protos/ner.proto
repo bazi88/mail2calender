@@ -2,35 +2,50 @@ syntax = "proto3";
 
 package ner;
 
+// NER Service definition
 service NERService {
-    rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
-    rpc BatchExtractEntities(BatchExtractEntitiesRequest) returns (BatchExtractEntitiesResponse);
+    // Extract entities from a single text
+    rpc ExtractEntities (ExtractEntitiesRequest) returns (ExtractEntitiesResponse) {}
+    
+    // Extract entities from multiple texts
+    rpc BatchExtractEntities (BatchExtractEntitiesRequest) returns (BatchExtractEntitiesResponse) {}
 }
 
+// Request message for single text processing
 message ExtractEntitiesRequest {
     string text = 1;
-    string language = 2;
 }
 
+// Response message containing entities
 message ExtractEntitiesResponse {
     repeated Entity entities = 1;
 }
 
+// Request message for batch processing
 message BatchExtractEntitiesRequest {
-    repeated ExtractEntitiesRequest requests = 1;
-    int32 batch_size = 2;
+    repeated string texts = 1;
 }
 
+// Response message for batch processing
 message BatchExtractEntitiesResponse {
-    repeated ExtractEntitiesResponse responses = 1;
-    float total_process_time = 2;
-    string error_message = 3;
+    repeated ExtractEntitiesResponse results = 1;
 }
 
+// Recurrence information
+message Recurrence {
+    string type = 1;              // daily, weekly, monthly, yearly
+    string rrule = 2;             // RFC 5545 RRULE string
+    repeated string next_occurrences = 3;  // Next occurrence dates
+}
+
+// Entity message representing an extracted entity
 message Entity {
     string text = 1;
     string type = 2;
     float confidence = 3;
     int32 start_pos = 4;
     int32 end_pos = 5;
+    optional string normalized_time = 6;  // For time entities
+    optional int64 timestamp = 7;         // Unix timestamp for time entities
+    optional Recurrence recurrence = 8;   // For recurring events
 }
