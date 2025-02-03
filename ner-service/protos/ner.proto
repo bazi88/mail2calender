@@ -19,6 +19,8 @@ message ExtractEntitiesRequest {
 // Response message containing entities
 message ExtractEntitiesResponse {
     repeated Entity entities = 1;
+    float process_time = 2;
+    string error_message = 3;
 }
 
 // Request message for batch processing

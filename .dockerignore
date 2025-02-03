@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env*
+*.md
+*.log
+tmp/
+test/
+docs/
+monitoring/
+nginx/
+docker-compose*
+Dockerfile*
+.air*
+coverage* 

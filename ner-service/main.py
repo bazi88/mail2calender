@@ -34,8 +34,8 @@ async def serve():
     )
     
     # Add services
-    ner_servicer = NERService()
-    health_servicer = HealthServicer()
+    ner_servicer = NERService(model)
+    health_servicer = HealthServicer(model)
     
     ner_pb2_grpc.add_NERServiceServicer_to_server(ner_servicer, server)
     health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)

@@ -124,8 +124,8 @@ class NERModel:
             return entities
 
         except Exception as e:
-            logger.error(f"Error processing text: {e}")
-            return []
+            logger.error(f"Error extracting entities: {e}")
+            return [], 0.0
 
     def batch_extract_entities(
         self, texts: List[str], batch_size: int = 8

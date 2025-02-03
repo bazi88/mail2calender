@@ -29,18 +29,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/golangci-lint
-          key: ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-${{ github.sha }}
+          key: ${{ runner.os }}-golangci-${{ hashFiles('.golangci.yml') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-golangci-${{ hashFiles('go8/.golangci.yml') }}-
+            ${{ runner.os }}-golangci-${{ hashFiles('.golangci.yml') }}-
             ${{ runner.os }}-golangci-
       
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --timeout=5m --path-prefix=go8
+          args: --timeout=5m
           working-directory: .
-          
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
-          POSTGRES_DB: go8_test_db
+          POSTGRES_DB: mail2calendar_test_db
         ports:
           - 5432:5432
         options: >-
@@ -82,11 +82,11 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go8/go.mod', 'go8/go.sum') }}-${{ github.sha }}
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('go8/go.mod', 'go8/go.sum') }}-
+            ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum') }}-
             ${{ runner.os }}-go-
-          
+      
       - name: Setup and Download Dependencies
         run: |
           echo "Current directory:"
@@ -95,7 +95,7 @@ jobs:
           ls -la
           go clean -modcache
           go mod download
-          
+      
       - name: Run Unit Tests
         run: |
           go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
@@ -104,12 +104,12 @@ jobs:
           DB_PORT: 5432
           DB_USER: postgres
           DB_PASS: password
-          DB_NAME: go8_test_db
-          
+          DB_NAME: mail2calendar_test_db
+      
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: go8/coverage.txt
+          file: coverage.txt
 
   build:
     name: Build and Push Docker Image
@@ -129,7 +129,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
+      
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -139,26 +139,3 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:latest,${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
-
-  deploy:
-    name: Deploy to Production
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      
-      - name: Deploy to production
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: 22
-          script: |
-            cd ~/Desktop/structure/mono_golang
-            docker compose pull
-            docker compose up -d 

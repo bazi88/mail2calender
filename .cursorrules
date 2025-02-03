@@ -1,0 +1,327 @@
+# Mail2Calendar Project - Cursor Rules
+
+## Thông Tin Memory Bank
+Vị trí: ./docs/cursor_docs/
+
+### File Memory Bank Bắt Buộc
+
+1. projectContext.md
+   - Mục đích và mục tiêu của dự án
+   - Các vấn đề chính được giải quyết
+   - Tổng quan chức năng chính
+   - Các điểm tích hợp (SMTP, Calendar APIs)
+
+2. systemArchitecture.md
+   - Giải thích cấu trúc dự án (/cmd, /internal, /config, etc)
+   - Kiến trúc dịch vụ
+   - Schema cơ sở dữ liệu
+   - Tích hợp dịch vụ bên ngoài
+
+3. techStack.md
+   - Phiên bản Go và dependencies
+   - Các thành phần hạ tầng (docker, databases)
+   - Dịch vụ bên thứ ba
+   - Thiết lập môi trường phát triển
+
+4. developmentStatus.md
+   - Các tính năng đã triển khai
+   - Vấn đề đã biết
+   - Trọng tâm phát triển hiện tại
+   - Độ phủ testing
+
+5. activeContext.md
+   - Nhánh phát triển hiện tại
+   - Phát triển tính năng đang diễn ra
+   - Thay đổi gần đây
+   - Các bước tiếp theo
+
+## Core Workflows
+
+### Bắt Đầu Phát Triển Mới
+1. Xác minh các file Memory Bank tồn tại trong ./docs/cursor_docs/
+2. Tạo các file tài liệu còn thiếu nếu cần
+3. Đọc TẤT CẢ các file Memory Bank trước khi phát triển
+4. Xác nhận hiểu biết đầy đủ về:
+   - Bố cục dự án (/cmd, /internal, /config, etc)
+   - Mô hình domain và logic nghiệp vụ
+   - Các phụ thuộc về hạ tầng
+
+### Giám Sát Trạng Thái IDE
+1. Theo dõi ngữ cảnh tài liệu đang hoạt động:
+   - Đường dẫn và nội dung file hiện tại
+   - Các tab đang mở trong Cursor
+   - Phiên terminal và output
+   - Trạng thái debug/test
+
+2. Thay đổi cấu hình:
+   - Cập nhật cài đặt Cursor
+   - Cấu hình AI và công cụ
+   - Cài đặt đặc thù cho dự án
+   - Cấu hình khởi chạy và debug
+
+3. Cập nhật tài liệu:
+   - Thay đổi README
+   - Tài liệu API
+   - Comment trong code
+   - Ví dụ cấu hình
+
+### Cập Nhật Tự Động
+1. Giám sát thay đổi trong:
+   - Tiêu chuẩn code style
+   - Chính sách nội dung Cursor
+   - Cài đặt và tính năng AI
+   - Tài liệu dự án
+
+2. Quy trình cập nhật:
+   - Quét các file đã thay đổi
+   - Cập nhật các file memory liên quan
+   - Điều chỉnh hướng dẫn phát triển
+   - Thông báo về các thay đổi quan trọng
+
+### Tiêu Chuẩn Code
+1. Tuân thủ quy ước bố cục dự án Go:
+   - /cmd - Ứng dụng chính
+   - /internal - Code riêng
+   - /pkg - Thư viện công khai
+   - /config - Cấu hình
+   
+2. Yêu Cầu Testing:
+   - Unit test bắt buộc cho code mới
+   - Integration test cho API endpoints
+   - E2E test cho luồng quan trọng
+
+3. Tài Liệu:
+   - Cập nhật tài liệu API trong /docs
+   - Duy trì đặc tả OpenAPI
+   - Ghi chép thay đổi cấu hình
+
+### Cập Nhật Memory Bank
+Khi yêu cầu "cập nhật memory bank":
+1. Xem xét trạng thái hiện tại
+2. Cập nhật tất cả tài liệu trong ./docs/cursor_docs/
+3. Ghi chép:
+   - Thay đổi gần đây
+   - Trạng thái hiện tại
+   - Các bước tiếp theo
+   - Vấn đề đã biết
+
+### Quy Tắc Ngữ Cảnh Thư Mục
+Phải hiểu các thư mục chính:
+- /cmd - Entry points và ứng dụng chính
+- /internal - Code ứng dụng riêng
+- /config - Quản lý cấu hình
+- /database - Migration và seed database
+- /docs - Tài liệu và đặc tả OpenAPI
+- /ent - Mô hình và truy vấn database
+- /examples - Ví dụ sử dụng và test case
+- /test-client-go - Triển khai test client
+- /scripts - Script tiện ích
+- /third_party - Thư viện và công cụ bên thứ ba
+
+### Kiểm Soát Phiên Bản
+1. Theo dõi thay đổi trong:
+   - Source code
+   - Tài liệu
+   - File cấu hình
+   - Script build
+
+2. Giám sát cập nhật cho:
+   - Dependencies
+   - Công cụ và tiện ích
+   - Script phát triển
+   - Pipeline CI/CD
+
+### Khôi Phục Lỗi
+Nếu mất ngữ cảnh:
+1. Dừng mọi phát triển
+2. Đọc các file Memory Bank
+3. Xác nhận hiểu biết với người dùng
+4. Bắt đầu với các thay đổi nhỏ, an toàn
+
+## Hiểu Biết Công Cụ Thiết Yếu
+- Task runner (Taskfile.yml)
+- Air cho hot reload (.air.toml)
+- Thiết lập Docker (file docker-compose)
+- Migration database (/database/migrations)
+- Tích hợp OpenTelemetry (/opentelemetry)
+- Tích hợp dịch vụ NER (/ner-service)
+
+## Yêu Cầu Tài Liệu
+1. Mọi thay đổi lớn phải cập nhật:
+   - File Memory Bank liên quan
+   - Tài liệu API
+   - README.md khi cần thiết
+   - Ví dụ cấu hình
+
+2. Tài liệu code:
+   - Tài liệu package
+   - Tài liệu hàm
+   - Giải thích logic phức tạp
+   - Tham số cấu hình
+
+## Bảo Mật và Tuân Thủ
+1. Xử lý thông tin xác thực:
+   - Sử dụng file .env (không commit)
+   - Tuân thủ mẫu middleware bảo mật
+   - Triển khai xác thực phù hợp
+   - Sử dụng quản lý phiên bảo mật
+
+2. Bảo mật code:
+   - Xác thực đầu vào
+   - Xử lý lỗi phù hợp
+   - Cấu hình mặc định an toàn
+   - Cập nhật dependency thường xuyên
+
+## Tiêu Chuẩn Testing
+1. Các loại test bắt buộc:
+   - Unit test
+   - Integration test
+   - E2E test (thư mục /e2e)
+
+2. Độ phủ test:
+   - Logic nghiệp vụ cốt lõi
+   - API endpoint
+   - Điều kiện lỗi
+   - Edge case
+
+## Hiểu Biết Hạ Tầng
+1. Môi trường Docker:
+   - Dịch vụ chính
+   - Database
+   - Dịch vụ NER
+   - Stack giám sát
+
+2. Dịch vụ bên thứ ba:
+   - Tích hợp email
+   - Dịch vụ lịch
+   - Nhà cung cấp xác thực
+
+## Hướng Dẫn Style
+1. Định dạng code:
+   - Tuân thủ tiêu chuẩn go fmt
+   - Quy ước đặt tên nhất quán
+   - Comment tài liệu rõ ràng
+   - Xử lý lỗi phù hợp
+
+2. Style tài liệu:
+   - Viết rõ ràng và súc tích
+   - Định dạng Markdown phù hợp
+   - Highlight cú pháp code block
+   - Cập nhật ví dụ
+
+Lưu ý: Hiểu biết của bạn chỉ đến từ tài liệu Memory Bank. Duy trì nó một cách nghiêm ngặt.
+
+## Công Cụ và Tính Năng Cursor
+1. Tính năng AI:
+   - Code completion
+   - Code review
+   - Refactoring suggestions
+   - Documentation generation
+
+2. Tích hợp công cụ:
+   - Terminal tích hợp
+   - Git integration
+   - Debugging tools
+   - Testing support
+
+## Quy Tắc Làm Việc với AI
+1. Sử dụng AI assistant:
+   - Viết yêu cầu rõ ràng
+   - Kiểm tra kết quả
+   - Tối ưu prompt
+   - Học từ phản hồi
+
+2. Code review với AI:
+   - Review tự động
+   - Phân tích chất lượng
+   - Đề xuất cải thiện
+   - Kiểm tra bảo mật
+
+## Quản Lý Cấu Hình
+1. Cấu trúc .env:
+   - .env.api: Cấu hình API service
+   - .env.worker: Cấu hình Worker service
+   - .env.ner: Cấu hình NER service
+   - KHÔNG commit các file .env vào git
+
+2. Quy Tắc Cấu Hình:
+   - Phân tách rõ ràng theo service
+   - Sử dụng comment để giải thích
+   - Đặt giá trị mặc định an toàn
+   - Validate các giá trị nhạy cảm
+
+## CI/CD Pipeline
+1. Continuous Integration:
+   - Test tự động khi push/PR
+   - Kiểm tra linting
+   - Chạy unit tests
+   - Đo độ phủ code
+
+2. Continuous Deployment:
+   - Deploy tự động khi tag
+   - Build và push Docker images
+   - Cập nhật production
+   - Rollback khi lỗi
+
+## Monitoring & Observability
+1. Metrics Collection:
+   - System metrics
+   - Application metrics
+   - Business metrics
+   - Performance metrics
+
+2. Alerting:
+   - Critical alerts
+   - Warning alerts
+   - Alert routing
+   - Escalation policy
+
+3. Dashboards:
+   - Overview dashboard
+   - Service dashboards
+   - Error tracking
+   - Performance monitoring
+
+## API Documentation
+1. OpenAPI/Swagger:
+   - API endpoints
+   - Request/response schemas
+   - Authentication
+   - Error handling
+
+2. Documentation Rules:
+   - Cập nhật khi thay đổi API
+   - Thêm ví dụ requests
+   - Mô tả error codes
+   - Validate schema
+
+## Security Guidelines
+1. Nginx Configuration:
+   - Security headers
+   - SSL/TLS settings
+   - Rate limiting
+   - DDoS protection
+
+2. Authentication:
+   - JWT implementation
+   - API key management
+   - OAuth2 integration
+   - Session handling
+
+3. Data Protection:
+   - Encryption at rest
+   - Secure communication
+   - Input validation
+   - Output sanitization
+
+## Testing Requirements
+1. Coverage Goals:
+   - Unit tests: >80%
+   - Integration tests: >70%
+   - E2E tests: >50%
+
+2. Test Types:
+   - Unit tests cho logic
+   - Integration tests cho flows
+   - E2E tests cho scenarios
+   - Performance tests

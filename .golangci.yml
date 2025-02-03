@@ -1,1 +1,37 @@
- 
+run:
+  timeout: 5m
+  tests: true
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gofmt
+    - gosimple
+    - ineffassign
+    - typecheck
+    - revive
+    - gosec
+    - gocritic
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  errcheck:
+    exclude-functions:
+      - (*encoding/json.Encoder).Encode
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-use-default: false
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck

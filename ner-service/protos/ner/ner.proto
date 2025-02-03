@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package ner;
+
+option go_package = "mono-golang/ner-service/protos/ner";
+
+// NERService provides named entity recognition functionality
+service NERService {
+  // ExtractEntities extracts named entities from text
+  rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse) {}
+  
+  // BatchExtractEntities extracts named entities from multiple texts
+  rpc BatchExtractEntities(BatchExtractEntitiesRequest) returns (BatchExtractEntitiesResponse) {}
+}
+
+// Entity represents a named entity
+message Entity {
+  string text = 1;
+  string type = 2;
+  float confidence = 3;
+  int32 start_pos = 4;
+  int32 end_pos = 5;
+}
+
+// ExtractEntitiesRequest represents a request to extract entities
+message ExtractEntitiesRequest {
+  string text = 1;
+  string language = 2;
+}
+
+// ExtractEntitiesResponse represents the response containing extracted entities
+message ExtractEntitiesResponse {
+  repeated Entity entities = 1;
+  string error_message = 2;
+}
+
+// BatchExtractEntitiesRequest represents a request to extract entities from multiple texts
+message BatchExtractEntitiesRequest {
+  repeated ExtractEntitiesRequest requests = 1;
+  int32 batch_size = 2;
+}
+
+// BatchExtractEntitiesResponse represents the response containing multiple extraction results
+message BatchExtractEntitiesResponse {
+  repeated ExtractEntitiesResponse responses = 1;
+  string error_message = 2;
+} 

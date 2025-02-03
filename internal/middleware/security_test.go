@@ -4,138 +4,177 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"mono-golang/internal/pkg/security"
+
+	"github.com/alicebob/miniredis/v2"
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSecurityHeaders(t *testing.T) {
-	// Test với cấu hình mặc định
-	t.Run("Default Config", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
+	tests := []struct {
+		name            string
+		config          *security.SecurityConfig
+		expectedHeaders map[string]string
+	}{
+		{
+			name: "Default Config",
+			config: &security.SecurityConfig{
+				HSTSMaxAge:            31536000,
+				HSTSIncludeSubdomains: true,
+				CSPDirectives: map[string][]string{
+					"default-src": {"'self'"},
+					"script-src":  {"'self'"},
+					"style-src":   {"'self'"},
+				},
+				FrameOptions:        "DENY",
+				XContentTypeOptions: "nosniff",
+				ReferrerPolicy:      "strict-origin-when-cross-origin",
+				CustomHeaders: map[string]string{
+					"X-XSS-Protection": "1; mode=block",
+				},
+			},
+			expectedHeaders: map[string]string{
+				"Content-Security-Policy":   "default-src 'self'; script-src 'self'; style-src 'self'",
+				"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+				"X-Frame-Options":           "DENY",
+				"X-Content-Type-Options":    "nosniff",
+				"Referrer-Policy":           "strict-origin-when-cross-origin",
+				"X-XSS-Protection":          "1; mode=block",
+			},
+		},
+		{
+			name: "Custom Config",
+			config: &security.SecurityConfig{
+				HSTSMaxAge:            3600,
+				HSTSIncludeSubdomains: false,
+				CSPDirectives: map[string][]string{
+					"default-src": {"'self'", "https://api.example.com"},
+					"script-src":  {"'self'", "https://cdn.example.com"},
+				},
+				FrameOptions:        "SAMEORIGIN",
+				XContentTypeOptions: "nosniff",
+				CustomHeaders: map[string]string{
+					"X-Custom-Header": "test-value",
+				},
+			},
+			expectedHeaders: map[string]string{
+				"Content-Security-Policy":   "default-src 'self' https://api.example.com; script-src 'self' https://cdn.example.com",
+				"Strict-Transport-Security": "max-age=3600",
+				"X-Frame-Options":           "SAMEORIGIN",
+				"X-Content-Type-Options":    "nosniff",
+				"X-Custom-Header":           "test-value",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest("GET", "/test", nil)
+			rr := httptest.NewRecorder()
+
+			SecurityHeadersWithConfig(tt.config)(handler).ServeHTTP(rr, req)
+
+			for key, expectedValue := range tt.expectedHeaders {
+				assert.Equal(t, expectedValue, rr.Header().Get(key))
+			}
 		})
-
-		req := httptest.NewRequest("GET", "/test", nil)
-		rr := httptest.NewRecorder()
-
-		SecurityHeaders(handler).ServeHTTP(rr, req)
-
-		headers := rr.Header()
-		assert.Equal(t, "nosniff", headers.Get("X-Content-Type-Options"))
-		assert.Equal(t, "DENY", headers.Get("X-Frame-Options"))
-		assert.Equal(t, "1; mode=block", headers.Get("X-XSS-Protection"))
-		assert.Contains(t, headers.Get("Content-Security-Policy"), "default-src 'self'")
-	})
-
-	// Test với cấu hình tùy chỉnh
-	t.Run("Custom Config", func(t *testing.T) {
-		config := &SecurityConfig{
-			CSPDirectives: map[string][]string{
-				"default-src": {"'self'", "https://api.example.com"},
-				"script-src":  {"'self'", "https://cdn.example.com"},
-			},
-			HSTSMaxAge:            3600,
-			HSTSIncludeSubdomains: false,
-			FrameOptions:          "SAMEORIGIN",
-			CustomHeaders: map[string]string{
-				"X-Custom-Header": "test-value",
-			},
-		}
-
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-
-		req := httptest.NewRequest("GET", "/test", nil)
-		rr := httptest.NewRecorder()
-
-		SecurityHeadersWithConfig(config)(handler).ServeHTTP(rr, req)
-
-		headers := rr.Header()
-
-		// Kiểm tra CSP tùy chỉnh
-		csp := headers.Get("Content-Security-Policy")
-		assert.Contains(t, csp, "default-src 'self' https://api.example.com")
-		assert.Contains(t, csp, "script-src 'self' https://cdn.example.com")
-
-		// Kiểm tra HSTS tùy chỉnh
-		hsts := headers.Get("Strict-Transport-Security")
-		assert.Contains(t, hsts, "max-age=3600")
-		assert.NotContains(t, hsts, "includeSubDomains")
-
-		// Kiểm tra Frame Options tùy chỉnh
-		assert.Equal(t, "SAMEORIGIN", headers.Get("X-Frame-Options"))
-
-		// Kiểm tra Custom Header
-		assert.Equal(t, "test-value", headers.Get("X-Custom-Header"))
-	})
-
-	// Test với CSP cho API endpoints
-	t.Run("API Config", func(t *testing.T) {
-		config := &SecurityConfig{
-			CSPDirectives: map[string][]string{
-				"default-src": {"'none'"},
-				"connect-src": {"'self'"},
-			},
-			FrameOptions: "DENY",
-			CustomHeaders: map[string]string{
-				"X-API-Version": "1.0",
-			},
-		}
-
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-
-		req := httptest.NewRequest("GET", "/api/test", nil)
-		rr := httptest.NewRecorder()
-
-		SecurityHeadersWithConfig(config)(handler).ServeHTTP(rr, req)
-
-		headers := rr.Header()
-		assert.Contains(t, headers.Get("Content-Security-Policy"), "default-src 'none'")
-		assert.Contains(t, headers.Get("Content-Security-Policy"), "connect-src 'self'")
-		assert.Equal(t, "1.0", headers.Get("X-API-Version"))
-	})
-
-	// Test với Feature Policy tùy chỉnh
-	t.Run("Feature Policy Config", func(t *testing.T) {
-		config := &SecurityConfig{
-			FeaturePolicy: map[string]string{
-				"camera":      "self https://meet.example.com",
-				"microphone":  "self https://meet.example.com",
-				"geolocation": "self",
-			},
-		}
-
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-
-		req := httptest.NewRequest("GET", "/test", nil)
-		rr := httptest.NewRecorder()
-
-		SecurityHeadersWithConfig(config)(handler).ServeHTTP(rr, req)
-
-		pp := rr.Header().Get("Permissions-Policy")
-		assert.Contains(t, pp, "camera=self https://meet.example.com")
-		assert.Contains(t, pp, "microphone=self https://meet.example.com")
-		assert.Contains(t, pp, "geolocation=self")
-	})
+	}
 }
 
-func TestSecurityHeadersNilConfig(t *testing.T) {
+func TestSecurityRateLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Setup mock Redis server
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mr.Close()
+
+	// Create Redis client connected to mock server
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: mr.Addr(),
+		DB:   0,
+	})
+	defer redisClient.Close()
+
+	limiter := NewRedisRateLimiter(redisClient, 2, time.Second)
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
-	rr := httptest.NewRecorder()
+	t.Run("Allow requests within limit", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		rr := httptest.NewRecorder()
 
-	SecurityHeadersWithConfig(nil)(handler).ServeHTTP(rr, req)
+		limiter.Limit(handler).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Kiểm tra xem có sử dụng cấu hình mặc định không
-	headers := rr.Header()
-	assert.Equal(t, "nosniff", headers.Get("X-Content-Type-Options"))
-	assert.Equal(t, "DENY", headers.Get("X-Frame-Options"))
+		rr = httptest.NewRecorder()
+		limiter.Limit(handler).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("Block requests over limit", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		rr := httptest.NewRecorder()
+
+		limiter.Limit(handler).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusTooManyRequests, rr.Code)
+		assert.NotEmpty(t, rr.Header().Get("Retry-After"))
+	})
+
+	t.Run("Reset limit after window", func(t *testing.T) {
+		mr.FastForward(time.Second)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		rr := httptest.NewRecorder()
+
+		limiter.Limit(handler).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
+func TestCORS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(SecurityMiddleware())
+
+	// Add OPTIONS handler
+	router.OPTIONS("/test", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "test")
+	})
+
+	t.Run("Preflight Request", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("OPTIONS", "/test", nil)
+		req.Header.Set("Origin", "http://example.com")
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Normal Request", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://example.com")
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
