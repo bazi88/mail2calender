@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/mail"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel"
 )
 
 // Mock implementations
@@ -37,11 +39,17 @@ type mockNERService struct {
 
 func (m *mockNERService) ExtractEntities(ctx context.Context, text string, language string) ([]Entity, error) {
 	args := m.Called(ctx, text, language)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]Entity), args.Error(1)
 }
 
 func (m *mockNERService) ExtractDateTime(ctx context.Context, text string) ([]time.Time, error) {
 	args := m.Called(ctx, text)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]time.Time), args.Error(1)
 }
 
@@ -60,12 +68,12 @@ func TestEmailProcessorImpl_ProcessEmail(t *testing.T) {
 	}{
 		{
 			name: "successful processing",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Meeting at 2pm tomorrow
-Content-Type: text/plain
-
-Let's meet tomorrow at 2pm in the conference room.`,
+			emailContent: "From: sender@example.com\r\n" +
+				"To: recipient@example.com\r\n" +
+				"Subject: Meeting at 2pm tomorrow\r\n" +
+				"Content-Type: text/plain\r\n" +
+				"\r\n" +
+				"Let's meet tomorrow at 2pm in the conference room.",
 			setupMocks: func(validator *mockEmailValidator, ner *mockNERService) {
 				startTime := time.Now().Add(24 * time.Hour).Round(time.Hour).Add(14 * time.Hour)
 				endTime := startTime.Add(time.Hour)
@@ -92,12 +100,12 @@ Let's meet tomorrow at 2pm in the conference room.`,
 		},
 		{
 			name: "NER service error",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Meeting tomorrow
-Content-Type: text/plain
-
-Meeting details.`,
+			emailContent: "From: sender@example.com\r\n" +
+				"To: recipient@example.com\r\n" +
+				"Subject: Meeting tomorrow\r\n" +
+				"Content-Type: text/plain\r\n" +
+				"\r\n" +
+				"Meeting details.",
 			setupMocks: func(validator *mockEmailValidator, ner *mockNERService) {
 				ner.On("ExtractDateTime", mock.Anything, mock.Anything).
 					Return([]time.Time{}, fmt.Errorf("NER service error"))
@@ -222,44 +230,44 @@ func TestEmailProcessorImpl_extractEmailContent(t *testing.T) {
 	}{
 		{
 			name: "plain text email",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Test Email
-Content-Type: text/plain
-
-This is a test email.`,
+			emailContent: "From: sender@example.com\r\n" +
+				"To: recipient@example.com\r\n" +
+				"Subject: Test Email\r\n" +
+				"Content-Type: text/plain\r\n" +
+				"\r\n" +
+				"This is a test email.",
 			expectedText: "This is a test email.",
 			expectedHTML: "",
 			hasAttach:    false,
 		},
 		{
 			name: "HTML email",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Test Email
-Content-Type: text/html
-
-<html><body>This is a test email.</body></html>`,
+			emailContent: "From: sender@example.com\r\n" +
+				"To: recipient@example.com\r\n" +
+				"Subject: Test Email\r\n" +
+				"Content-Type: text/html\r\n" +
+				"\r\n" +
+				"<html><body>This is a test email.</body></html>",
 			expectedText: "",
 			expectedHTML: "<html><body>This is a test email.</body></html>",
 			hasAttach:    false,
 		},
 		{
 			name: "multipart email",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Test Email
-Content-Type: multipart/mixed; boundary="boundary"
-
---boundary
-Content-Type: text/plain
-
-Plain text content
---boundary
-Content-Type: text/html
-
-<html><body>HTML content</body></html>
---boundary--`,
+			emailContent: "From: sender@example.com\r\n" +
+				"To: recipient@example.com\r\n" +
+				"Subject: Test Email\r\n" +
+				"Content-Type: multipart/mixed; boundary=\"boundary123\"\r\n" +
+				"\r\n" +
+				"--boundary123\r\n" +
+				"Content-Type: text/plain\r\n" +
+				"\r\n" +
+				"Plain text content\r\n" +
+				"--boundary123\r\n" +
+				"Content-Type: text/html\r\n" +
+				"\r\n" +
+				"<html><body>HTML content</body></html>\r\n" +
+				"--boundary123--\r\n",
 			expectedText: "Plain text content",
 			expectedHTML: "<html><body>HTML content</body></html>",
 			hasAttach:    false,
@@ -269,16 +277,20 @@ Content-Type: text/html
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create concrete implementation
-			processor := &emailProcessorImpl{
+			processorImpl := &emailProcessorImpl{
 				validator:  new(mockEmailValidator),
 				nerService: new(mockNERService),
+				tracer:     otel.GetTracerProvider().Tracer("email-processor"),
 			}
 
-			msg, err := processor.parseEmail(context.Background(), tt.emailContent)
+			// Parse email
+			msg, err := mail.ReadMessage(strings.NewReader(tt.emailContent))
 			assert.NoError(t, err)
+			assert.NotNil(t, msg)
 
-			content, err := processor.extractEmailContent(context.Background(), msg)
+			content, err := processorImpl.extractEmailContent(context.Background(), msg)
 			assert.NoError(t, err)
+			assert.NotNil(t, content)
 
 			assert.Equal(t, tt.expectedText, content.PlainText)
 			assert.Equal(t, tt.expectedHTML, content.HTML)
@@ -320,12 +332,7 @@ func TestEmailProcessorImpl_extractAttendees(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create concrete implementation
-			processor := &emailProcessorImpl{
-				validator:  new(mockEmailValidator),
-				nerService: new(mockNERService),
-			}
-
+			// Create test header
 			header := make(mail.Header)
 			if tt.to != "" {
 				header["To"] = []string{tt.to}
@@ -334,7 +341,14 @@ func TestEmailProcessorImpl_extractAttendees(t *testing.T) {
 				header["Cc"] = []string{tt.cc}
 			}
 
-			attendees := processor.extractAttendees(header)
+			// Create concrete implementation
+			processorImpl := &emailProcessorImpl{
+				validator:  new(mockEmailValidator),
+				nerService: new(mockNERService),
+				tracer:     otel.GetTracerProvider().Tracer("email-processor"),
+			}
+
+			attendees := processorImpl.extractAttendees(header)
 			assert.ElementsMatch(t, tt.expectedEmails, attendees)
 		})
 	}

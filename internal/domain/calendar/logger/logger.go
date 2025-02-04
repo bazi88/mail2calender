@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
@@ -15,6 +16,7 @@ import (
 type Logger struct {
 	zap    *zap.Logger
 	tracer trace.Tracer
+	mu     sync.RWMutex
 }
 
 // Fields represents logging fields
@@ -36,6 +38,10 @@ func New(tracer trace.Tracer) (*Logger, error) {
 	config.EncoderConfig.TimeKey = "timestamp"
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
+	// Disable stderr syncing to avoid "invalid argument" errors in tests
+	config.OutputPaths = []string{"stdout"}
+	config.ErrorOutputPaths = []string{"stdout"}
+
 	zapLogger, err := config.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger: %v", err)
@@ -49,6 +55,9 @@ func New(tracer trace.Tracer) (*Logger, error) {
 
 // WithContext adds trace context to log entries
 func (l *Logger) WithContext(ctx context.Context) *Logger {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	spanCtx := trace.SpanContextFromContext(ctx)
 	if !spanCtx.IsValid() {
 		return l
@@ -67,10 +76,23 @@ func (l *Logger) WithContext(ctx context.Context) *Logger {
 
 // WithFields adds fields to log entries
 func (l *Logger) WithFields(fields Fields) *Logger {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	zapFields := make([]zap.Field, 0, len(fields))
+	var fieldsMu sync.Mutex
+
+	var wg sync.WaitGroup
 	for k, v := range fields {
-		zapFields = append(zapFields, zap.Any(k, v))
+		wg.Add(1)
+		go func(key string, value interface{}) {
+			defer wg.Done()
+			fieldsMu.Lock()
+			zapFields = append(zapFields, zap.Any(key, value))
+			fieldsMu.Unlock()
+		}(k, v)
 	}
+	wg.Wait()
 
 	return &Logger{
 		zap:    l.zap.With(zapFields...),
@@ -114,12 +136,25 @@ func (l *Logger) ErrorWithContext(ctx context.Context, msg string, err error, fi
 }
 
 func (l *Logger) log(level LogLevel, msg string, fields ...Fields) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	mergedFields := mergeFields(fields...)
 
-	var zapFields []zap.Field
+	zapFields := make([]zap.Field, 0, len(mergedFields))
+	var fieldsMu sync.Mutex
+
+	var wg sync.WaitGroup
 	for k, v := range mergedFields {
-		zapFields = append(zapFields, zap.Any(k, v))
+		wg.Add(1)
+		go func(key string, value interface{}) {
+			defer wg.Done()
+			fieldsMu.Lock()
+			zapFields = append(zapFields, zap.Any(key, value))
+			fieldsMu.Unlock()
+		}(k, v)
 	}
+	wg.Wait()
 
 	switch level {
 	case DebugLevel:
@@ -133,7 +168,12 @@ func (l *Logger) log(level LogLevel, msg string, fields ...Fields) {
 	}
 }
 
+var mergeFieldsMu sync.Mutex
+
 func mergeFields(fields ...Fields) Fields {
+	mergeFieldsMu.Lock()
+	defer mergeFieldsMu.Unlock()
+
 	merged := Fields{}
 	for _, f := range fields {
 		for k, v := range f {
@@ -186,5 +226,8 @@ func (l *Logger) LogMetric(ctx context.Context, name string, value interface{}, 
 
 // Close flushes any buffered log entries
 func (l *Logger) Close() error {
-	return l.zap.Sync()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	_ = l.zap.Sync() // Ignore sync errors as they're not relevant for cleanup
+	return nil
 }

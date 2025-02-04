@@ -7,205 +7,216 @@ import (
 	"time"
 )
 
-// RecurrenceFrequency defines how often the event repeats
-type RecurrenceFrequency string
-
+// Frequency constants
 const (
-	FreqDaily   RecurrenceFrequency = "DAILY"
-	FreqWeekly  RecurrenceFrequency = "WEEKLY"
-	FreqMonthly RecurrenceFrequency = "MONTHLY"
-	FreqYearly  RecurrenceFrequency = "YEARLY"
+	FreqDaily   = "DAILY"
+	FreqWeekly  = "WEEKLY"
+	FreqMonthly = "MONTHLY"
+	FreqYearly  = "YEARLY"
+	FreqHourly  = "HOURLY"
 )
 
-// Weekday represents days of the week
-type Weekday int
+// Weekday type and constants
+type Weekday string
 
 const (
-	Sunday Weekday = iota
-	Monday
-	Tuesday
-	Wednesday
-	Thursday
-	Friday
-	Saturday
+	Monday    Weekday = "MO"
+	Tuesday   Weekday = "TU"
+	Wednesday Weekday = "WE"
+	Thursday  Weekday = "TH"
+	Friday    Weekday = "FR"
+	Saturday  Weekday = "SA"
+	Sunday    Weekday = "SU"
 )
 
-// RecurrenceRule represents an RFC 5545 RRULE
+// RecurrenceRule represents a parsed recurrence rule
 type RecurrenceRule struct {
-	Frequency  RecurrenceFrequency
-	Until      *time.Time   // End date for recurrence
-	Count      *int         // Number of occurrences
-	Interval   int          // Frequency interval (every N days/weeks/etc)
-	ByDay      []Weekday    // Days of the week
-	ByMonthDay []int        // Days of the month
-	ByMonth    []time.Month // Months of the year
+	Frequency  string
+	Count      *int
+	Interval   int
+	ByDay      []Weekday
+	ByMonth    []time.Month
+	ByMonthDay []int
 }
 
-// ParseRecurrenceRule parses an RFC 5545 RRULE string
-func ParseRecurrenceRule(rule string) (*RecurrenceRule, error) {
-	if !strings.HasPrefix(rule, "RRULE:") {
-		return nil, fmt.Errorf("invalid RRULE format: missing RRULE prefix")
+// ParseRecurrenceRule parses an iCal-style recurrence rule
+func ParseRecurrenceRule(ruleStr string) (*RecurrenceRule, error) {
+	if !strings.HasPrefix(ruleStr, "RRULE:") {
+		return nil, fmt.Errorf("invalid recurrence rule format: missing RRULE prefix")
 	}
 
-	parts := strings.Split(strings.TrimPrefix(rule, "RRULE:"), ";")
-	r := &RecurrenceRule{Interval: 1} // Default interval is 1
+	rule := &RecurrenceRule{
+		Interval: 1, // Default interval
+	}
+
+	parts := strings.Split(strings.TrimPrefix(ruleStr, "RRULE:"), ";")
 
 	for _, part := range parts {
-		kv := strings.Split(part, "=")
+		kv := strings.SplitN(part, "=", 2)
 		if len(kv) != 2 {
 			continue
 		}
 
-		key, value := kv[0], kv[1]
+		key := kv[0]
+		value := kv[1]
+
 		switch key {
 		case "FREQ":
-			r.Frequency = RecurrenceFrequency(value)
-		case "UNTIL":
-			t, err := time.Parse("20060102T150405Z", value)
-			if err == nil {
-				r.Until = &t
-			}
+			rule.Frequency = value
 		case "COUNT":
-			if count, err := strconv.Atoi(value); err == nil {
-				r.Count = &count
+			count, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid COUNT value: %v", err)
 			}
+			rule.Count = &count
 		case "INTERVAL":
-			if interval, err := strconv.Atoi(value); err == nil {
-				r.Interval = interval
+			interval, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid INTERVAL value: %v", err)
 			}
+			rule.Interval = interval
 		case "BYDAY":
-			r.ByDay = parseByDay(value)
-		case "BYMONTHDAY":
-			r.ByMonthDay = parseByMonthDay(value)
+			days := strings.Split(value, ",")
+			rule.ByDay = make([]Weekday, len(days))
+			for i, day := range days {
+				rule.ByDay[i] = Weekday(day)
+			}
 		case "BYMONTH":
-			r.ByMonth = parseByMonth(value)
+			monthStrs := strings.Split(value, ",")
+			for _, monthStr := range monthStrs {
+				month, err := strconv.Atoi(monthStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid BYMONTH value: %v", err)
+				}
+				rule.ByMonth = append(rule.ByMonth, time.Month(month))
+			}
+		case "BYMONTHDAY":
+			dayStrs := strings.Split(value, ",")
+			for _, dayStr := range dayStrs {
+				day, err := strconv.Atoi(dayStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid BYMONTHDAY value: %v", err)
+				}
+				rule.ByMonthDay = append(rule.ByMonthDay, day)
+			}
 		}
 	}
 
-	return r, nil
+	return rule, nil
 }
 
-// GetRecurrences returns all recurrence dates between start and end
-func (r *RecurrenceRule) GetRecurrences(start, end time.Time, eventDuration time.Duration) []TimeSlot {
+// GetRecurrences returns all occurrences within the specified range
+func (r *RecurrenceRule) GetRecurrences(start time.Time, end time.Time, duration time.Duration) []TimeSlot {
 	var slots []TimeSlot
-	current := start
 	count := 0
+	maxCount := -1
+	if r.Count != nil {
+		maxCount = *r.Count
+	}
 
-	for current.Before(end) {
-		if r.Count != nil && count >= *r.Count {
-			break
-		}
-		if r.Until != nil && current.After(*r.Until) {
-			break
-		}
+	interval := time.Duration(r.Interval)
 
-		if r.isOccurrence(current) {
+	switch r.Frequency {
+	case FreqDaily:
+		for current := start; !current.After(end) && (maxCount == -1 || count < maxCount); current = current.AddDate(0, 0, int(interval)) {
 			slots = append(slots, TimeSlot{
 				Start: current,
-				End:   current.Add(eventDuration),
+				End:   current.Add(duration),
 			})
 			count++
 		}
 
-		// Advance to next potential occurrence
-		switch r.Frequency {
-		case FreqDaily:
-			current = current.AddDate(0, 0, r.Interval)
-		case FreqWeekly:
-			current = current.AddDate(0, 0, 7*r.Interval)
-		case FreqMonthly:
-			current = current.AddDate(0, r.Interval, 0)
-		case FreqYearly:
-			current = current.AddDate(r.Interval, 0, 0)
+	case FreqWeekly:
+		for current := start; !current.After(end) && (maxCount == -1 || count < maxCount); current = current.AddDate(0, 0, 7*int(interval)) {
+			if len(r.ByDay) == 0 {
+				slots = append(slots, TimeSlot{
+					Start: current,
+					End:   current.Add(duration),
+				})
+				count++
+			} else {
+				// Generate slots for each specified weekday
+				for _, day := range r.ByDay {
+					daySlot := current
+					switch day {
+					case Monday:
+						daySlot = getNextWeekday(current, time.Monday)
+					case Tuesday:
+						daySlot = getNextWeekday(current, time.Tuesday)
+					case Wednesday:
+						daySlot = getNextWeekday(current, time.Wednesday)
+					case Thursday:
+						daySlot = getNextWeekday(current, time.Thursday)
+					case Friday:
+						daySlot = getNextWeekday(current, time.Friday)
+					case Saturday:
+						daySlot = getNextWeekday(current, time.Saturday)
+					case Sunday:
+						daySlot = getNextWeekday(current, time.Sunday)
+					}
+					if !daySlot.After(end) {
+						slots = append(slots, TimeSlot{
+							Start: daySlot,
+							End:   daySlot.Add(duration),
+						})
+					}
+				}
+				count++
+			}
+		}
+
+	case FreqMonthly:
+		for current := start; !current.After(end) && (maxCount == -1 || count < maxCount); current = current.AddDate(0, int(interval), 0) {
+			if len(r.ByMonthDay) > 0 {
+				for _, day := range r.ByMonthDay {
+					daySlot := time.Date(current.Year(), current.Month(), day, current.Hour(), current.Minute(), current.Second(), current.Nanosecond(), current.Location())
+					if !daySlot.After(end) && !daySlot.Before(start) {
+						slots = append(slots, TimeSlot{
+							Start: daySlot,
+							End:   daySlot.Add(duration),
+						})
+					}
+				}
+			} else {
+				slots = append(slots, TimeSlot{
+					Start: current,
+					End:   current.Add(duration),
+				})
+			}
+			count++
+		}
+
+	case FreqYearly:
+		for current := start; !current.After(end) && (maxCount == -1 || count < maxCount); current = current.AddDate(int(interval), 0, 0) {
+			if len(r.ByMonth) > 0 {
+				year := current.Year()
+				for _, month := range r.ByMonth {
+					monthSlot := time.Date(year, month, current.Day(), current.Hour(), current.Minute(), current.Second(), current.Nanosecond(), current.Location())
+					if !monthSlot.After(end) && !monthSlot.Before(start) {
+						slots = append(slots, TimeSlot{
+							Start: monthSlot,
+							End:   monthSlot.Add(duration),
+						})
+					}
+				}
+			} else {
+				slots = append(slots, TimeSlot{
+					Start: current,
+					End:   current.Add(duration),
+				})
+			}
+			count++
 		}
 	}
 
 	return slots
 }
 
-func (r *RecurrenceRule) isOccurrence(t time.Time) bool {
-	// Check BYMONTH
-	if len(r.ByMonth) > 0 {
-		monthMatch := false
-		for _, month := range r.ByMonth {
-			if t.Month() == month {
-				monthMatch = true
-				break
-			}
-		}
-		if !monthMatch {
-			return false
-		}
+// Helper function to get the next occurrence of a weekday
+func getNextWeekday(current time.Time, weekday time.Weekday) time.Time {
+	daysUntil := int(weekday - current.Weekday())
+	if daysUntil <= 0 {
+		daysUntil += 7
 	}
-
-	// Check BYMONTHDAY
-	if len(r.ByMonthDay) > 0 {
-		dayMatch := false
-		for _, day := range r.ByMonthDay {
-			if t.Day() == day {
-				dayMatch = true
-				break
-			}
-		}
-		if !dayMatch {
-			return false
-		}
-	}
-
-	// Check BYDAY
-	if len(r.ByDay) > 0 {
-		dayMatch := false
-		for _, day := range r.ByDay {
-			if Weekday(t.Weekday()) == day {
-				dayMatch = true
-				break
-			}
-		}
-		if !dayMatch {
-			return false
-		}
-	}
-
-	return true
-}
-
-// Helper functions to parse RRULE components
-func parseByDay(value string) []Weekday {
-	var days []Weekday
-	dayMap := map[string]Weekday{
-		"SU": Sunday,
-		"MO": Monday,
-		"TU": Tuesday,
-		"WE": Wednesday,
-		"TH": Thursday,
-		"FR": Friday,
-		"SA": Saturday,
-	}
-
-	for _, day := range strings.Split(value, ",") {
-		if d, ok := dayMap[day]; ok {
-			days = append(days, d)
-		}
-	}
-	return days
-}
-
-func parseByMonthDay(value string) []int {
-	var days []int
-	for _, day := range strings.Split(value, ",") {
-		if d, err := strconv.Atoi(day); err == nil && d >= 1 && d <= 31 {
-			days = append(days, d)
-		}
-	}
-	return days
-}
-
-func parseByMonth(value string) []time.Month {
-	var months []time.Month
-	for _, month := range strings.Split(value, ",") {
-		if m, err := strconv.Atoi(month); err == nil && m >= 1 && m <= 12 {
-			months = append(months, time.Month(m))
-		}
-	}
-	return months
+	return current.AddDate(0, 0, daysUntil)
 }

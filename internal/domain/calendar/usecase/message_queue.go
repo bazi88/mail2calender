@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"mono-golang/internal/domain/calendar/service"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -32,7 +34,7 @@ type messagingService struct {
 	conn     *amqp.Connection
 	channel  *amqp.Channel
 	config   QueueConfig
-	calendar *CalendarService
+	calendar service.CalendarService // Changed to use the correct interface
 	tracer   trace.Tracer
 }
 
@@ -45,7 +47,7 @@ type EmailMessage struct {
 }
 
 // NewMessageQueueService creates a new instance of MessageQueueService
-func NewMessageQueueService(config QueueConfig, calendar *CalendarService) (MessageQueueService, error) {
+func NewMessageQueueService(config QueueConfig, calendar service.CalendarService) (MessageQueueService, error) { // Updated parameter type
 	conn, err := amqp.Dial(config.URI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)
@@ -145,7 +147,7 @@ func (s *messagingService) ProcessMessages(ctx context.Context) error {
 				attribute.Int("retry_count", emailMsg.RetryCount),
 			)
 
-			err := s.calendar.ProcessEmailToCalendar(processCtx, emailMsg.EmailContent, emailMsg.UserID)
+			_, err := s.calendar.ProcessEmailToCalendar(processCtx, emailMsg.EmailContent) // Updated to match interface
 			if err != nil {
 				span.RecordError(err)
 				if emailMsg.RetryCount < s.config.MaxRetries {

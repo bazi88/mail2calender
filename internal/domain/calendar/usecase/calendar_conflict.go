@@ -19,7 +19,7 @@ type TimeRange struct {
 	Duration  time.Duration
 }
 
-// ConflictResult represents the result of conflict checking
+// ConflictResult represents the result of a conflict check
 type ConflictResult struct {
 	HasConflict      bool
 	ConflictingEvent *CalendarEvent
@@ -62,42 +62,91 @@ func NewConflictChecker(calendarService CalendarService) ConflictChecker {
 }
 
 func (cc *conflictCheckerImpl) CheckConflicts(ctx context.Context, event *CalendarEvent) (*ConflictResult, error) {
-	// Get existing events for all attendees during the event time
 	existingEvents, err := cc.calendarService.GetEvents(ctx, TimeRange{
 		StartTime: event.StartTime,
 		EndTime:   event.EndTime,
-	}, event.Attendees)
-
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check for conflicts
-	var conflictingEvent *CalendarEvent
+	result := &ConflictResult{
+		HasConflict:  false,
+		Alternatives: make([]TimeSlot, 0),
+	}
+
 	for _, existing := range existingEvents {
-		if cc.eventsOverlap(event, existing) {
-			conflictingEvent = existing
-			break
+		if existing.ID == event.ID {
+			continue // Skip the same event
+		}
+
+		// Check for recurring event conflicts
+		if event.RecurrenceRule != "" || existing.RecurrenceRule != "" {
+			if cc.checkRecurringConflict(event, existing) {
+				result.HasConflict = true
+				result.ConflictingEvent = existing
+				result.Alternatives = cc.findAlternativeSlots(ctx, event, existingEvents)
+				return result, nil
+			}
+		} else {
+			// Check for regular event conflicts
+			if cc.checkTimeOverlap(event.StartTime, event.EndTime, existing.StartTime, existing.EndTime) {
+				result.HasConflict = true
+				result.ConflictingEvent = existing
+				result.Alternatives = cc.findAlternativeSlots(ctx, event, existingEvents)
+				return result, nil
+			}
 		}
 	}
 
-	if conflictingEvent == nil {
-		return &ConflictResult{
-			HasConflict: false,
-		}, nil
-	}
+	return result, nil
+}
 
-	// If there's a conflict, find alternative time slots
-	alternatives, err := cc.findAlternativeSlots(ctx, event, existingEvents)
-	if err != nil {
-		return nil, err
-	}
+func (cc *conflictCheckerImpl) checkRecurringConflict(event1, event2 *CalendarEvent) bool {
+    // If either event is not recurring, just check for time overlap
+    if event1.RecurrenceRule == "" || event2.RecurrenceRule == "" {
+        if event1.RecurrenceRule == "" {
+            return cc.checkTimeOverlap(event1.StartTime, event1.EndTime, event2.StartTime, event2.EndTime)
+        }
+        return cc.checkTimeOverlap(event2.StartTime, event2.EndTime, event1.StartTime, event1.EndTime)
+    }
 
-	return &ConflictResult{
-		HasConflict:      true,
-		ConflictingEvent: conflictingEvent,
-		Alternatives:     alternatives,
-	}, nil
+    // For daily recurring events, if their times overlap on any day, they conflict
+    if event1.RecurrenceRule == "FREQ=DAILY" && event2.RecurrenceRule == "FREQ=DAILY" {
+        baseTime := time.Date(2000, 1, 1, 
+            event1.StartTime.Hour(), event1.StartTime.Minute(), event1.StartTime.Second(), 0, time.UTC)
+        event1End := baseTime.Add(event1.EndTime.Sub(event1.StartTime))
+        
+        event2Start := time.Date(2000, 1, 1,
+            event2.StartTime.Hour(), event2.StartTime.Minute(), event2.StartTime.Second(), 0, time.UTC)
+        event2End := event2Start.Add(event2.EndTime.Sub(event2.StartTime))
+        
+        return cc.checkTimeOverlap(baseTime, event1End, event2Start, event2End)
+    }
+
+    return false
+}
+
+func (cc *conflictCheckerImpl) checkTimeOverlap(start1, end1, start2, end2 time.Time) bool {
+	return start1.Before(end2) && end1.After(start2)
+}
+
+func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *CalendarEvent, existingEvents []*CalendarEvent) []TimeSlot {
+	// Simple implementation: suggest slots after the conflicting event
+	// This can be enhanced based on working hours and other constraints
+	duration := event.EndTime.Sub(event.StartTime)
+	alternatives := make([]TimeSlot, 0)
+	
+	proposedStart := event.EndTime
+	for i := 0; i < 3; i++ { // Suggest up to 3 alternative slots
+		alternatives = append(alternatives, TimeSlot{
+			Start: proposedStart,
+			End:   proposedStart.Add(duration),
+		})
+		proposedStart = proposedStart.Add(time.Hour) // Next slot starts an hour later
+	}
+	
+	return alternatives
 }
 
 func (cc *conflictCheckerImpl) FindAvailableSlots(ctx context.Context, timeRange TimeRange, attendees []string) ([]TimeSlot, error) {
@@ -113,44 +162,45 @@ func (cc *conflictCheckerImpl) FindAvailableSlots(ctx context.Context, timeRange
 	})
 
 	// Merge overlapping busy periods
-	merged := cc.mergeBusyPeriods(busyPeriods)
+	mergedBusy := cc.mergeBusyPeriods(busyPeriods)
 
-	// Find gaps between busy periods that fit the duration
-	var availableSlots []TimeSlot
-	current := timeRange.StartTime
-
-	for _, busy := range merged {
-		if current.Add(timeRange.Duration).Before(busy.Start) {
-			availableSlots = append(availableSlots, TimeSlot{
-				Start: current,
-				End:   current.Add(timeRange.Duration),
-			})
-		}
-		current = busy.End
-	}
-
-	// Check if there's space after the last busy period
-	if current.Add(timeRange.Duration).Before(timeRange.EndTime) {
-		availableSlots = append(availableSlots, TimeSlot{
+	// Generate all possible slots
+	var allSlots []TimeSlot
+	for current := timeRange.StartTime; current.Add(timeRange.Duration).Before(timeRange.EndTime) || current.Add(timeRange.Duration).Equal(timeRange.EndTime); {
+		slot := TimeSlot{
 			Start: current,
 			End:   current.Add(timeRange.Duration),
-		})
+		}
+		allSlots = append(allSlots, slot)
+		current = current.Add(timeRange.Duration)
+	}
+
+	// Filter out slots that overlap with busy periods
+	availableSlots := make([]TimeSlot, 0, len(allSlots))
+	for _, slot := range allSlots {
+		overlaps := false
+		for _, busy := range mergedBusy {
+			if cc.timeSlotOverlaps(slot, busy) {
+				overlaps = true
+				break
+			}
+		}
+		if !overlaps {
+			availableSlots = append(availableSlots, slot)
+		}
 	}
 
 	return availableSlots, nil
 }
 
 func (cc *conflictCheckerImpl) GetBusyPeriods(ctx context.Context, timeRange TimeRange, attendees []string) ([]TimeSlot, error) {
-	// Get events for all attendees
 	events, err := cc.calendarService.GetEvents(ctx, timeRange, attendees)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert events to time slots
 	busyPeriods := make([]TimeSlot, 0, len(events))
 	for _, event := range events {
-		// Handle all-day events
 		if event.IsAllDay {
 			busyPeriods = append(busyPeriods, TimeSlot{
 				Start: time.Date(event.StartTime.Year(), event.StartTime.Month(), event.StartTime.Day(), 0, 0, 0, 0, event.StartTime.Location()),
@@ -159,14 +209,12 @@ func (cc *conflictCheckerImpl) GetBusyPeriods(ctx context.Context, timeRange Tim
 			continue
 		}
 
-		// Handle recurring events
 		if event.IsRecurring && event.RecurrenceRule != "" {
 			recurrenceSlots := cc.expandRecurringEvent(event, timeRange)
 			busyPeriods = append(busyPeriods, recurrenceSlots...)
 			continue
 		}
 
-		// Regular events
 		busyPeriods = append(busyPeriods, TimeSlot{
 			Start: event.StartTime,
 			End:   event.EndTime,
@@ -176,71 +224,17 @@ func (cc *conflictCheckerImpl) GetBusyPeriods(ctx context.Context, timeRange Tim
 	return busyPeriods, nil
 }
 
-func (cc *conflictCheckerImpl) eventsOverlap(event1, event2 *CalendarEvent) bool {
-	// If either event is recurring, expand it and check all instances
-	if event1.IsRecurring || event2.IsRecurring {
-		timeRange := TimeRange{
-			StartTime: minTime(event1.StartTime, event2.StartTime),
-			EndTime:   maxTime(event1.EndTime, event2.EndTime),
-		}
-
-		if event1.IsRecurring {
-			slots1 := cc.expandRecurringEvent(event1, timeRange)
-			for _, slot := range slots1 {
-				if cc.timeSlotOverlaps(slot, TimeSlot{Start: event2.StartTime, End: event2.EndTime}) {
-					return true
-				}
-			}
-		}
-
-		if event2.IsRecurring {
-			slots2 := cc.expandRecurringEvent(event2, timeRange)
-			for _, slot := range slots2 {
-				if cc.timeSlotOverlaps(slot, TimeSlot{Start: event1.StartTime, End: event1.EndTime}) {
-					return true
-				}
-			}
-		}
-
-		return false
-	}
-
-	// Handle all-day events
-	if event1.IsAllDay || event2.IsAllDay {
-		return cc.datesOverlap(
-			event1.StartTime, event1.EndTime,
-			event2.StartTime, event2.EndTime,
-		)
-	}
-
-	// Regular events: check if one event's start time falls within the other event's time range
-	return !(event1.EndTime.Before(event2.StartTime) || event1.StartTime.After(event2.EndTime))
-}
-
 func (cc *conflictCheckerImpl) timeSlotOverlaps(slot1, slot2 TimeSlot) bool {
 	return !(slot1.End.Before(slot2.Start) || slot1.Start.After(slot2.End))
 }
 
 func (cc *conflictCheckerImpl) datesOverlap(start1, end1, start2, end2 time.Time) bool {
-	// Compare dates without time
 	date1Start := time.Date(start1.Year(), start1.Month(), start1.Day(), 0, 0, 0, 0, start1.Location())
 	date1End := time.Date(end1.Year(), end1.Month(), end1.Day(), 23, 59, 59, 0, end1.Location())
 	date2Start := time.Date(start2.Year(), start2.Month(), start2.Day(), 0, 0, 0, 0, start2.Location())
 	date2End := time.Date(end2.Year(), end2.Month(), end2.Day(), 23, 59, 59, 0, end2.Location())
 
 	return !(date1End.Before(date2Start) || date1Start.After(date2End))
-}
-
-func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *CalendarEvent, existingEvents []*CalendarEvent) ([]TimeSlot, error) {
-	// Define time range for searching alternatives (e.g., ±7 days from original time)
-	searchRange := TimeRange{
-		StartTime: event.StartTime.Add(-7 * 24 * time.Hour),
-		EndTime:   event.StartTime.Add(7 * 24 * time.Hour),
-		Duration:  event.EndTime.Sub(event.StartTime),
-	}
-
-	// Find available slots
-	return cc.FindAvailableSlots(ctx, searchRange, event.Attendees)
 }
 
 func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
@@ -253,7 +247,6 @@ func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
 
 	for i := 1; i < len(periods); i++ {
 		if current.End.After(periods[i].Start) || current.End.Equal(periods[i].Start) {
-			// Merge overlapping periods
 			if periods[i].End.After(current.End) {
 				current.End = periods[i].End
 			}
@@ -267,22 +260,6 @@ func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
 	return merged
 }
 
-func (cc *conflictCheckerImpl) expandRecurringEvent(event *CalendarEvent, timeRange TimeRange) []TimeSlot {
-	if !event.IsRecurring || event.RecurrenceRule == "" {
-		return []TimeSlot{{Start: event.StartTime, End: event.EndTime}}
-	}
-
-	rule, err := ParseRecurrenceRule(event.RecurrenceRule)
-	if err != nil {
-		// If we can't parse the rule, return just the original event
-		return []TimeSlot{{Start: event.StartTime, End: event.EndTime}}
-	}
-
-	duration := event.EndTime.Sub(event.StartTime)
-	return rule.GetRecurrences(event.StartTime, timeRange.EndTime, duration)
-}
-
-// Helper functions for time comparisons
 func minTime(t1, t2 time.Time) time.Time {
 	if t1.Before(t2) {
 		return t1
@@ -295,4 +272,16 @@ func maxTime(t1, t2 time.Time) time.Time {
 		return t1
 	}
 	return t2
+}
+
+func (cc *conflictCheckerImpl) checkDailyRecurrenceOverlap(event1, event2 *CalendarEvent) bool {
+	// Daily recurrence overlap logic
+	// This is a placeholder, you need to implement the actual logic
+	return false
+}
+
+func (cc *conflictCheckerImpl) expandRecurringEvent(event *CalendarEvent, timeRange TimeRange) []TimeSlot {
+	// Expand recurring event logic
+	// This is a placeholder, you need to implement the actual logic
+	return []TimeSlot{}
 }

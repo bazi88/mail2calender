@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,10 +21,17 @@ type mockTracer struct {
 type mockSpan struct {
 	trace.Span
 	recordedError error
+	mu            sync.RWMutex
 }
 
 func (s *mockSpan) RecordError(err error, opts ...trace.EventOption) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.recordedError = err
+}
+
+func (s *mockSpan) SpanContext() trace.SpanContext {
+	return trace.SpanContext{}
 }
 
 // createTestLogger creates a logger with an observer for testing
@@ -91,17 +99,29 @@ func TestLogger_LogLevels(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.logFunc(tt.message, tt.fields)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
-			allLogs := logs.All()
-			assert.True(t, len(allLogs) > 0)
-			lastLog := allLogs[len(allLogs)-1]
-			assert.Equal(t, tt.message, lastLog.Message)
-			assert.Equal(t, tt.fields["test"], lastLog.ContextMap()["test"])
+	for _, tt := range tests {
+		tt := tt // Capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				tt.logFunc(tt.message, tt.fields)
+
+				mu.Lock()
+				defer mu.Unlock()
+
+				allLogs := logs.All()
+				assert.True(t, len(allLogs) > 0)
+				lastLog := allLogs[len(allLogs)-1]
+				assert.Equal(t, tt.message, lastLog.Message)
+				assert.Equal(t, tt.fields["test"], lastLog.ContextMap()["test"])
+			}()
 		})
 	}
+	wg.Wait()
 }
 
 func TestLogger_ErrorWithContext(t *testing.T) {
@@ -116,11 +136,14 @@ func TestLogger_ErrorWithContext(t *testing.T) {
 	logger.ErrorWithContext(ctx, "error occurred", testError)
 
 	// Verify error was recorded in span
+	mockSpan.mu.RLock()
 	assert.Equal(t, testError, mockSpan.recordedError)
+	mockSpan.mu.RUnlock()
 }
 
 func TestLogger_LogRequestResponse(t *testing.T) {
 	logger, logs := createTestLogger()
+	var mu sync.Mutex
 
 	ctx := context.Background()
 	requestBody := map[string]string{"key": "value"}
@@ -129,6 +152,8 @@ func TestLogger_LogRequestResponse(t *testing.T) {
 
 	// Test successful request
 	logger.LogRequestResponse(ctx, "req123", "GET", "/test", requestBody, responseBody, duration, nil)
+
+	mu.Lock()
 	allLogs := logs.All()
 	assert.True(t, len(allLogs) > 0)
 	lastLog := allLogs[len(allLogs)-1]
@@ -136,22 +161,28 @@ func TestLogger_LogRequestResponse(t *testing.T) {
 	assert.Equal(t, "req123", lastLog.ContextMap()["request_id"])
 	assert.Equal(t, "GET", lastLog.ContextMap()["method"])
 	assert.Equal(t, "/test", lastLog.ContextMap()["path"])
+	mu.Unlock()
 
 	// Test failed request
 	testError := errors.New("request failed")
 	logger.LogRequestResponse(ctx, "req124", "POST", "/test", requestBody, nil, duration, testError)
+
+	mu.Lock()
 	allLogs = logs.All()
 	lastLog = allLogs[len(allLogs)-1]
 	assert.Equal(t, "API request failed", lastLog.Message)
 	assert.Contains(t, lastLog.ContextMap()["error"], "request failed")
+	mu.Unlock()
 }
 
 func TestLogger_LogMetric(t *testing.T) {
 	logger, logs := createTestLogger()
+	var mu sync.Mutex
 
 	ctx := context.Background()
 	logger.LogMetric(ctx, "test_metric", 42.0, Fields{"dimension": "test"})
 
+	mu.Lock()
 	allLogs := logs.All()
 	assert.True(t, len(allLogs) > 0)
 	lastLog := allLogs[len(allLogs)-1]
@@ -159,17 +190,23 @@ func TestLogger_LogMetric(t *testing.T) {
 	assert.Equal(t, "test_metric", lastLog.ContextMap()["metric_name"])
 	assert.Equal(t, 42.0, lastLog.ContextMap()["metric_value"])
 	assert.Equal(t, "test", lastLog.ContextMap()["dimension"])
+	mu.Unlock()
 }
 
 func TestMergeFields(t *testing.T) {
 	fields1 := Fields{"key1": "value1", "key2": 2}
 	fields2 := Fields{"key2": "overwritten", "key3": true}
 
-	merged := mergeFields(fields1, fields2)
-
-	assert.Equal(t, "value1", merged["key1"])
-	assert.Equal(t, "overwritten", merged["key2"])
-	assert.Equal(t, true, merged["key3"])
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		merged := mergeFields(fields1, fields2)
+		assert.Equal(t, "value1", merged["key1"])
+		assert.Equal(t, "overwritten", merged["key2"])
+		assert.Equal(t, true, merged["key3"])
+	}()
+	wg.Wait()
 }
 
 func TestLogger_Close(t *testing.T) {
