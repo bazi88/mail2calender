@@ -2,178 +2,189 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger represents the logging interface
-type Logger interface {
-	Debug(ctx context.Context, msg string, fields ...zapcore.Field)
-	Info(ctx context.Context, msg string, fields ...zapcore.Field)
-	Warn(ctx context.Context, msg string, fields ...zapcore.Field)
-	Error(ctx context.Context, msg string, fields ...zapcore.Field)
-	Fatal(ctx context.Context, msg string, fields ...zapcore.Field)
-	With(fields ...zapcore.Field) Logger
+// Logger provides structured logging with tracing integration
+type Logger struct {
+	zap    *zap.Logger
+	tracer trace.Tracer
 }
 
-type loggerImpl struct {
-	logger *zap.Logger
-}
+// Fields represents logging fields
+type Fields map[string]interface{}
 
-// Config holds logger configuration
-type Config struct {
-	Environment string // "development" or "production"
-	Level       string // "debug", "info", "warn", "error"
-	OutputPaths []string
-}
+// LogLevel represents logging level
+type LogLevel string
 
-// NewLogger creates a new configured logger
-func NewLogger(config Config) (Logger, error) {
-	// Base logger configuration
-	zapConfig := zap.NewProductionConfig()
-	if config.Environment == "development" {
-		zapConfig = zap.NewDevelopmentConfig()
-	}
+const (
+	DebugLevel LogLevel = "debug"
+	InfoLevel  LogLevel = "info"
+	WarnLevel  LogLevel = "warn"
+	ErrorLevel LogLevel = "error"
+)
 
-	// Configure log level
-	level, err := zapcore.ParseLevel(config.Level)
+// New creates a new logger instance
+func New(tracer trace.Tracer) (*Logger, error) {
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.TimeKey = "timestamp"
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	zapLogger, err := config.Build()
 	if err != nil {
-		level = zapcore.InfoLevel
-	}
-	zapConfig.Level = zap.NewAtomicLevelAt(level)
-
-	// Configure output paths
-	if len(config.OutputPaths) > 0 {
-		zapConfig.OutputPaths = config.OutputPaths
+		return nil, fmt.Errorf("failed to create logger: %v", err)
 	}
 
-	// Create custom encoder config for JSON formatting
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "timestamp",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		FunctionKey:    zapcore.OmitKey,
-		MessageKey:     "message",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.SecondsDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
-	}
-	zapConfig.EncoderConfig = encoderConfig
-
-	logger, err := zapConfig.Build(
-		zap.AddCaller(),
-		zap.AddStacktrace(zapcore.ErrorLevel),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &loggerImpl{
-		logger: logger,
+	return &Logger{
+		zap:    zapLogger,
+		tracer: tracer,
 	}, nil
 }
 
-// extractTraceInfo extracts OpenTelemetry trace information from context
-func extractTraceInfo(ctx context.Context) []zapcore.Field {
-	if ctx == nil {
-		return nil
-	}
-
-	span := trace.SpanFromContext(ctx)
-	if !span.IsRecording() {
-		return nil
-	}
-
-	spanCtx := span.SpanContext()
+// WithContext adds trace context to log entries
+func (l *Logger) WithContext(ctx context.Context) *Logger {
+	spanCtx := trace.SpanContextFromContext(ctx)
 	if !spanCtx.IsValid() {
-		return nil
+		return l
 	}
 
-	return []zapcore.Field{
+	logger := l.zap.With(
 		zap.String("trace_id", spanCtx.TraceID().String()),
 		zap.String("span_id", spanCtx.SpanID().String()),
+	)
+
+	return &Logger{
+		zap:    logger,
+		tracer: l.tracer,
 	}
 }
 
-func (l *loggerImpl) Debug(ctx context.Context, msg string, fields ...zapcore.Field) {
-	if traceFields := extractTraceInfo(ctx); len(traceFields) > 0 {
-		fields = append(fields, traceFields...)
+// WithFields adds fields to log entries
+func (l *Logger) WithFields(fields Fields) *Logger {
+	zapFields := make([]zap.Field, 0, len(fields))
+	for k, v := range fields {
+		zapFields = append(zapFields, zap.Any(k, v))
 	}
-	l.logger.Debug(msg, fields...)
-}
 
-func (l *loggerImpl) Info(ctx context.Context, msg string, fields ...zapcore.Field) {
-	if traceFields := extractTraceInfo(ctx); len(traceFields) > 0 {
-		fields = append(fields, traceFields...)
-	}
-	l.logger.Info(msg, fields...)
-}
-
-func (l *loggerImpl) Warn(ctx context.Context, msg string, fields ...zapcore.Field) {
-	if traceFields := extractTraceInfo(ctx); len(traceFields) > 0 {
-		fields = append(fields, traceFields...)
-	}
-	l.logger.Warn(msg, fields...)
-}
-
-func (l *loggerImpl) Error(ctx context.Context, msg string, fields ...zapcore.Field) {
-	if traceFields := extractTraceInfo(ctx); len(traceFields) > 0 {
-		fields = append(fields, traceFields...)
-	}
-	l.logger.Error(msg, fields...)
-}
-
-func (l *loggerImpl) Fatal(ctx context.Context, msg string, fields ...zapcore.Field) {
-	if traceFields := extractTraceInfo(ctx); len(traceFields) > 0 {
-		fields = append(fields, traceFields...)
-	}
-	l.logger.Fatal(msg, fields...)
-}
-
-func (l *loggerImpl) With(fields ...zapcore.Field) Logger {
-	return &loggerImpl{
-		logger: l.logger.With(fields...),
+	return &Logger{
+		zap:    l.zap.With(zapFields...),
+		tracer: l.tracer,
 	}
 }
 
-// Example usage:
-/*
-config := logger.Config{
-    Environment: "production",
-    Level:       "info",
-    OutputPaths: []string{
-        "stdout",
-        "/var/log/calendar-service.log",
-        "elasticsearch://localhost:9200/logs-calendar/doc",
-    },
+// Debug logs debug level message
+func (l *Logger) Debug(msg string, fields ...Fields) {
+	l.log(DebugLevel, msg, fields...)
 }
 
-log, err := logger.NewLogger(config)
-if err != nil {
-    panic(err)
+// Info logs info level message
+func (l *Logger) Info(msg string, fields ...Fields) {
+	l.log(InfoLevel, msg, fields...)
 }
 
-// Usage with context and tracing
-log.Info(ctx, "Processing email",
-    zap.String("user_id", userID),
-    zap.String("email_id", emailID),
-    zap.Int("retry_count", retryCount),
-)
+// Warn logs warning level message
+func (l *Logger) Warn(msg string, fields ...Fields) {
+	l.log(WarnLevel, msg, fields...)
+}
 
-// Create scoped logger
-userLogger := log.With(
-    zap.String("user_id", userID),
-    zap.String("service", "calendar"),
-)
+// Error logs error level message
+func (l *Logger) Error(msg string, fields ...Fields) {
+	l.log(ErrorLevel, msg, fields...)
+}
 
-userLogger.Error(ctx, "Failed to create calendar event",
-    zap.Error(err),
-    zap.String("event_id", eventID),
-)
-*/
+// ErrorWithContext logs error with trace context
+func (l *Logger) ErrorWithContext(ctx context.Context, msg string, err error, fields ...Fields) {
+	mergedFields := mergeFields(fields...)
+	if err != nil {
+		mergedFields["error"] = err.Error()
+	}
+
+	l.WithContext(ctx).log(ErrorLevel, msg, mergedFields)
+
+	// Record error in trace span if available
+	if span := trace.SpanFromContext(ctx); span != nil {
+		span.RecordError(err)
+	}
+}
+
+func (l *Logger) log(level LogLevel, msg string, fields ...Fields) {
+	mergedFields := mergeFields(fields...)
+
+	var zapFields []zap.Field
+	for k, v := range mergedFields {
+		zapFields = append(zapFields, zap.Any(k, v))
+	}
+
+	switch level {
+	case DebugLevel:
+		l.zap.Debug(msg, zapFields...)
+	case InfoLevel:
+		l.zap.Info(msg, zapFields...)
+	case WarnLevel:
+		l.zap.Warn(msg, zapFields...)
+	case ErrorLevel:
+		l.zap.Error(msg, zapFields...)
+	}
+}
+
+func mergeFields(fields ...Fields) Fields {
+	merged := Fields{}
+	for _, f := range fields {
+		for k, v := range f {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+// LogRequestResponse logs API request/response details
+func (l *Logger) LogRequestResponse(ctx context.Context, requestID string, method, path string, requestBody, responseBody interface{}, duration time.Duration, err error) {
+	fields := Fields{
+		"request_id":   requestID,
+		"method":       method,
+		"path":         path,
+		"duration_ms":  duration.Milliseconds(),
+		"request_time": time.Now().Format(time.RFC3339),
+	}
+
+	if requestBody != nil {
+		if reqJSON, err := json.Marshal(requestBody); err == nil {
+			fields["request_body"] = string(reqJSON)
+		}
+	}
+
+	if responseBody != nil {
+		if respJSON, err := json.Marshal(responseBody); err == nil {
+			fields["response_body"] = string(respJSON)
+		}
+	}
+
+	if err != nil {
+		fields["error"] = err.Error()
+		l.WithContext(ctx).Error("API request failed", fields)
+		return
+	}
+
+	l.WithContext(ctx).Info("API request completed", fields)
+}
+
+// LogMetric logs metric data
+func (l *Logger) LogMetric(ctx context.Context, name string, value interface{}, fields ...Fields) {
+	mergedFields := mergeFields(fields...)
+	mergedFields["metric_name"] = name
+	mergedFields["metric_value"] = value
+	mergedFields["metric_time"] = time.Now().Format(time.RFC3339)
+
+	l.WithContext(ctx).Info("Metric recorded", mergedFields)
+}
+
+// Close flushes any buffered log entries
+func (l *Logger) Close() error {
+	return l.zap.Sync()
+}

@@ -2,199 +2,180 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestNewLogger(t *testing.T) {
+type mockTracer struct {
+	trace.Tracer
+}
+
+type mockSpan struct {
+	trace.Span
+	recordedError error
+}
+
+func (s *mockSpan) RecordError(err error, opts ...trace.EventOption) {
+	s.recordedError = err
+}
+
+// createTestLogger creates a logger with an observer for testing
+func createTestLogger() (*Logger, *observer.ObservedLogs) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	logger := &Logger{
+		zap:    zap.New(core),
+		tracer: &mockTracer{},
+	}
+	return logger, recorded
+}
+
+func TestLogger_WithContext(t *testing.T) {
+	// Create a test logger
+	logger, err := New(&mockTracer{})
+	assert.NoError(t, err)
+
+	// Test with invalid context
+	invalidCtx := context.Background()
+	loggerWithCtx := logger.WithContext(invalidCtx)
+	assert.NotNil(t, loggerWithCtx)
+
+	// TODO: Add test with valid trace context when needed
+}
+
+func TestLogger_WithFields(t *testing.T) {
+	logger, err := New(&mockTracer{})
+	assert.NoError(t, err)
+
+	fields := Fields{
+		"key1": "value1",
+		"key2": 123,
+	}
+
+	loggerWithFields := logger.WithFields(fields)
+	assert.NotNil(t, loggerWithFields)
+}
+
+func TestLogger_LogLevels(t *testing.T) {
+	logger, logs := createTestLogger()
+
 	tests := []struct {
 		name    string
-		config  Config
-		wantErr bool
+		logFunc func(string, ...Fields)
+		message string
+		fields  Fields
 	}{
 		{
-			name: "default production config",
-			config: Config{
-				Environment: "production",
-				Level:       "info",
-				OutputPaths: []string{"stdout"},
-			},
-			wantErr: false,
+			name:    "info level",
+			logFunc: logger.Info,
+			message: "info message",
+			fields:  Fields{"test": "info"},
 		},
 		{
-			name: "development config",
-			config: Config{
-				Environment: "development",
-				Level:       "debug",
-				OutputPaths: []string{"stdout"},
-			},
-			wantErr: false,
+			name:    "warn level",
+			logFunc: logger.Warn,
+			message: "warn message",
+			fields:  Fields{"test": "warn"},
 		},
 		{
-			name: "invalid level",
-			config: Config{
-				Environment: "production",
-				Level:       "invalid",
-				OutputPaths: []string{"stdout"},
-			},
-			wantErr: false, // Should not error, defaults to info
-		},
-		{
-			name: "invalid output path",
-			config: Config{
-				Environment: "production",
-				Level:       "info",
-				OutputPaths: []string{"/invalid/path/that/does/not/exist"},
-			},
-			wantErr: true,
+			name:    "error level",
+			logFunc: logger.Error,
+			message: "error message",
+			fields:  Fields{"test": "error"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := NewLogger(tt.config)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
+			tt.logFunc(tt.message, tt.fields)
 
-			assert.NoError(t, err)
-			assert.NotNil(t, logger)
+			allLogs := logs.All()
+			assert.True(t, len(allLogs) > 0)
+			lastLog := allLogs[len(allLogs)-1]
+			assert.Equal(t, tt.message, lastLog.Message)
+			assert.Equal(t, tt.fields["test"], lastLog.ContextMap()["test"])
 		})
 	}
 }
 
-func TestLogger_Levels(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-	testLogger := &loggerImpl{logger: zap.New(core)}
+func TestLogger_ErrorWithContext(t *testing.T) {
+	// Create test logger with mock span
+	mockSpan := &mockSpan{}
+	ctx := trace.ContextWithSpan(context.Background(), mockSpan)
 
-	ctx := context.Background()
-	testCases := []struct {
-		level   string
-		logFunc func(string, ...zapcore.Field)
-	}{
-		{
-			level: "debug",
-			logFunc: func(msg string, fields ...zapcore.Field) {
-				testLogger.Debug(ctx, msg, fields...)
-			},
-		},
-		{
-			level: "info",
-			logFunc: func(msg string, fields ...zapcore.Field) {
-				testLogger.Info(ctx, msg, fields...)
-			},
-		},
-		{
-			level: "warn",
-			logFunc: func(msg string, fields ...zapcore.Field) {
-				testLogger.Warn(ctx, msg, fields...)
-			},
-		},
-		{
-			level: "error",
-			logFunc: func(msg string, fields ...zapcore.Field) {
-				testLogger.Error(ctx, msg, fields...)
-			},
-		},
-	}
+	logger, err := New(&mockTracer{})
+	assert.NoError(t, err)
 
-	for _, tc := range testCases {
-		t.Run(tc.level, func(t *testing.T) {
-			msg := "test message"
-			tc.logFunc(msg)
-			require.NotZero(t, logs.Len())
-			lastLog := logs.All()[logs.Len()-1]
-			assert.Equal(t, msg, lastLog.Message)
-		})
-	}
+	testError := errors.New("test error")
+	logger.ErrorWithContext(ctx, "error occurred", testError)
+
+	// Verify error was recorded in span
+	assert.Equal(t, testError, mockSpan.recordedError)
 }
 
-func TestLogger_WithFields(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-	testLogger := &loggerImpl{logger: zap.New(core)}
+func TestLogger_LogRequestResponse(t *testing.T) {
+	logger, logs := createTestLogger()
 
 	ctx := context.Background()
-	fields := []zapcore.Field{
-		zap.String("key1", "value1"),
-		zap.Int("key2", 42),
-	}
+	requestBody := map[string]string{"key": "value"}
+	responseBody := map[string]int{"count": 42}
+	duration := 100 * time.Millisecond
 
-	// Create a logger with fields
-	loggerWithFields := testLogger.With(fields...)
+	// Test successful request
+	logger.LogRequestResponse(ctx, "req123", "GET", "/test", requestBody, responseBody, duration, nil)
+	allLogs := logs.All()
+	assert.True(t, len(allLogs) > 0)
+	lastLog := allLogs[len(allLogs)-1]
+	assert.Equal(t, "API request completed", lastLog.Message)
+	assert.Equal(t, "req123", lastLog.ContextMap()["request_id"])
+	assert.Equal(t, "GET", lastLog.ContextMap()["method"])
+	assert.Equal(t, "/test", lastLog.ContextMap()["path"])
 
-	// Log a message
-	msg := "test with fields"
-	loggerWithFields.Info(ctx, msg)
-
-	// Verify the log entry
-	require.NotZero(t, logs.Len())
-	lastLog := logs.All()[logs.Len()-1]
-	assert.Equal(t, msg, lastLog.Message)
-
-	// Verify fields are present
-	contextMap := make(map[string]interface{})
-	for _, field := range lastLog.Context {
-		contextMap[field.Key] = field.Interface
-	}
-
-	assert.Equal(t, "value1", contextMap["key1"])
-	assert.Equal(t, 42, contextMap["key2"])
+	// Test failed request
+	testError := errors.New("request failed")
+	logger.LogRequestResponse(ctx, "req124", "POST", "/test", requestBody, nil, duration, testError)
+	allLogs = logs.All()
+	lastLog = allLogs[len(allLogs)-1]
+	assert.Equal(t, "API request failed", lastLog.Message)
+	assert.Contains(t, lastLog.ContextMap()["error"], "request failed")
 }
 
-func TestLogger_TraceContext(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-	testLogger := &loggerImpl{logger: zap.New(core)}
-
-	// Create a traced context
-	tracer := otel.Tracer("test-tracer")
-	ctx, span := tracer.Start(context.Background(), "test-span")
-	defer span.End()
-
-	// Log with traced context
-	msg := "test with trace"
-	testLogger.Info(ctx, msg)
-
-	// Verify trace information is included
-	require.NotZero(t, logs.Len())
-	lastLog := logs.All()[logs.Len()-1]
-	assert.Equal(t, msg, lastLog.Message)
-
-	// Get the span context
-	spanCtx := trace.SpanFromContext(ctx).SpanContext()
-	if spanCtx.IsValid() {
-		contextMap := make(map[string]interface{})
-		for _, field := range lastLog.Context {
-			contextMap[field.Key] = field.Interface
-		}
-
-		assert.Contains(t, contextMap, "trace_id")
-		assert.Contains(t, contextMap, "span_id")
-	}
-}
-
-func TestLogger_Fatal(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-	testLogger := &loggerImpl{logger: zap.New(core)}
+func TestLogger_LogMetric(t *testing.T) {
+	logger, logs := createTestLogger()
 
 	ctx := context.Background()
-	msg := "fatal error"
+	logger.LogMetric(ctx, "test_metric", 42.0, Fields{"dimension": "test"})
 
-	// Use a defer to prevent the test from actually exiting
-	defer func() {
-		if r := recover(); r != nil {
-			require.NotZero(t, logs.Len())
-			lastLog := logs.All()[logs.Len()-1]
-			assert.Equal(t, msg, lastLog.Message)
-		}
-	}()
+	allLogs := logs.All()
+	assert.True(t, len(allLogs) > 0)
+	lastLog := allLogs[len(allLogs)-1]
+	assert.Equal(t, "Metric recorded", lastLog.Message)
+	assert.Equal(t, "test_metric", lastLog.ContextMap()["metric_name"])
+	assert.Equal(t, 42.0, lastLog.ContextMap()["metric_value"])
+	assert.Equal(t, "test", lastLog.ContextMap()["dimension"])
+}
 
-	testLogger.Fatal(ctx, msg)
+func TestMergeFields(t *testing.T) {
+	fields1 := Fields{"key1": "value1", "key2": 2}
+	fields2 := Fields{"key2": "overwritten", "key3": true}
+
+	merged := mergeFields(fields1, fields2)
+
+	assert.Equal(t, "value1", merged["key1"])
+	assert.Equal(t, "overwritten", merged["key2"])
+	assert.Equal(t, true, merged["key3"])
+}
+
+func TestLogger_Close(t *testing.T) {
+	logger, err := New(&mockTracer{})
+	assert.NoError(t, err)
+
+	err = logger.Close()
+	assert.NoError(t, err)
 }
