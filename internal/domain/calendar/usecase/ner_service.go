@@ -93,13 +93,17 @@ func (s *nerServiceImpl) ExtractDateTime(ctx context.Context, text string) ([]ti
 
 	var dates []time.Time
 	for _, entity := range entities {
-		if entity.Label == "DATE" || entity.Label == "TIME" {
+		if strings.EqualFold(entity.Label, "TIME") || strings.EqualFold(entity.Label, "DATE") {
 			// Parse date/time text using various formats
 			t, err := parseDateTime(s.tzUtil, entity.Text)
 			if err == nil {
 				dates = append(dates, t)
 			}
 		}
+	}
+
+	if len(dates) == 0 {
+		return nil, fmt.Errorf("no valid dates found in text")
 	}
 
 	return dates, nil
