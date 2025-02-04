@@ -186,10 +186,15 @@ func TestNERService_ExtractDateTime(t *testing.T) {
 				assert.Nil(t, dates)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, dates, "dates should not be nil")
+				assert.NotEmpty(t, dates, "dates should not be empty")
 				assert.Len(t, dates, len(tt.expectedDates))
-				for i, expectedDate := range tt.expectedDates {
-					assert.Equal(t, expectedDate.Hour(), dates[i].Hour())
-					assert.Equal(t, expectedDate.Minute(), dates[i].Minute())
+
+				if len(dates) > 0 && len(tt.expectedDates) > 0 {
+					for i, expectedDate := range tt.expectedDates {
+						assert.Equal(t, expectedDate.Hour(), dates[i].Hour())
+						assert.Equal(t, expectedDate.Minute(), dates[i].Minute())
+					}
 				}
 			}
 		})
