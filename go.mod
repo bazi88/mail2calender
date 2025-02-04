@@ -6,6 +6,7 @@ toolchain go1.22.11
 
 require (
 	entgo.io/ent v0.12.5
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/cespare/xxhash/v2 v2.3.0

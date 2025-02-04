@@ -37,21 +37,15 @@ func (uc *nerUseCase) ExtractEntities(ctx context.Context, text string) (*ner.Ex
 }
 
 // ExtractEntitiesFromText extracts named entities from the given text and converts to internal format
-func (uc *nerUseCase) ExtractEntitiesFromText(ctx context.Context, text string) ([]*Entity, error) {
+func (uc *nerUseCase) ExtractEntitiesFromText(ctx context.Context, text string) ([]*ner.Entity, error) {
 	response, err := uc.client.ExtractEntities(ctx, text)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract entities: %v", err)
 	}
 
-	var entities []*Entity
-	for _, e := range response.Entities {
-		entities = append(entities, &Entity{
-			Text:     e.Text,
-			Label:    e.Label,
-			StartPos: e.Start,
-			EndPos:   e.End,
-		})
+	if response == nil {
+		return nil, nil
 	}
 
-	return entities, nil
+	return response.Entities, nil
 }

@@ -74,54 +74,54 @@ func TestLogger_LogLevels(t *testing.T) {
 	logger, logs := createTestLogger()
 
 	tests := []struct {
-		name    string
-		logFunc func(string, ...Fields)
-		message string
-		fields  Fields
+		name     string
+		logFunc  func(string, ...Fields)
+		message  string
+		fields   Fields
+		expected zapcore.Level
 	}{
 		{
-			name:    "info level",
-			logFunc: logger.Info,
-			message: "info message",
-			fields:  Fields{"test": "info"},
+			name:     "info level",
+			logFunc:  logger.Info,
+			message:  "info message",
+			fields:   Fields{"test": "info"},
+			expected: zapcore.InfoLevel,
 		},
 		{
-			name:    "warn level",
-			logFunc: logger.Warn,
-			message: "warn message",
-			fields:  Fields{"test": "warn"},
+			name:     "warn level",
+			logFunc:  logger.Warn,
+			message:  "warn message",
+			fields:   Fields{"test": "warn"},
+			expected: zapcore.WarnLevel,
 		},
 		{
-			name:    "error level",
-			logFunc: logger.Error,
-			message: "error message",
-			fields:  Fields{"test": "error"},
+			name:     "error level",
+			logFunc:  logger.Error,
+			message:  "error message",
+			fields:   Fields{"test": "error"},
+			expected: zapcore.ErrorLevel,
 		},
 	}
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex
 
 	for _, tt := range tests {
 		tt := tt // Capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				tt.logFunc(tt.message, tt.fields)
+			// Clear logs before each test
+			logs.TakeAll()
 
-				mu.Lock()
-				defer mu.Unlock()
+			// Execute log function
+			tt.logFunc(tt.message, tt.fields)
 
-				allLogs := logs.All()
-				assert.True(t, len(allLogs) > 0)
-				lastLog := allLogs[len(allLogs)-1]
-				assert.Equal(t, tt.message, lastLog.Message)
-				assert.Equal(t, tt.fields["test"], lastLog.ContextMap()["test"])
-			}()
+			// Get logs after logging
+			allLogs := logs.All()
+			if assert.Len(t, allLogs, 1) {
+				entry := allLogs[0]
+				assert.Equal(t, tt.message, entry.Message)
+				assert.Equal(t, tt.fields["test"], entry.ContextMap()["test"])
+				assert.Equal(t, tt.expected, entry.Level)
+			}
 		})
 	}
-	wg.Wait()
 }
 
 func TestLogger_ErrorWithContext(t *testing.T) {

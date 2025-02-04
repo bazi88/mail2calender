@@ -6,4 +6,7 @@ import "context"
 type UseCase interface {
 	// ExtractEntities extracts named entities from the given text
 	ExtractEntities(ctx context.Context, text string) (*ExtractResponse, error)
+
+	// ExtractEntitiesFromText extracts named entities from text and returns them in internal format
+	ExtractEntitiesFromText(ctx context.Context, text string) ([]*Entity, error)
 }
