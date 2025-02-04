@@ -1,7 +1,32 @@
-.idea
-bin
-.data
-vendor
+# Test coverage
+coverage.txt
+coverage.html
+
+# Build
+bin/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# Dependencies 
+vendor/
+
+# Generated files
+*.pb.go
+*.swagger.json
+
+# Config files
 .env
+*.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+.data
 sqlboiler.toml
 tmp
