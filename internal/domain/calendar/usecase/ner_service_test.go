@@ -86,7 +86,9 @@ func TestNERService_ExtractEntities(t *testing.T) {
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 				// Return mock response
-				json.NewEncoder(w).Encode(tt.mockResponse)
+				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
+					t.Fatal(err)
+				}
 			}))
 			defer server.Close()
 
@@ -174,7 +176,9 @@ func TestNERService_ExtractDateTime(t *testing.T) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				json.NewEncoder(w).Encode(tt.mockResponse)
+				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
+					t.Fatal(err)
+				}
 			}))
 			defer server.Close()
 
@@ -269,7 +273,9 @@ func TestNERService_ExtractLocation(t *testing.T) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				json.NewEncoder(w).Encode(tt.mockResponse)
+				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
+					t.Fatal(err)
+				}
 			}))
 			defer server.Close()
 

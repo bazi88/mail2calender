@@ -11,7 +11,10 @@ import (
 func TestJson(t *testing.T) {
 	// Create a mock handler that will be wrapped
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"message": "test"}`))
+		_, err := w.Write([]byte(`{"message": "test"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	// Create the middleware handler

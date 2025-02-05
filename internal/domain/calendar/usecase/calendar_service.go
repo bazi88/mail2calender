@@ -123,11 +123,7 @@ func (cs *calendarServiceImpl) GetWorkingHours(ctx context.Context, attendees []
 	for email, hours := range workingHours {
 		schedules := make([]WeeklySchedule, len(hours.Schedule))
 		for i, schedule := range hours.Schedule {
-			schedules[i] = WeeklySchedule{
-				DayOfWeek: schedule.DayOfWeek,
-				StartTime: schedule.StartTime,
-				EndTime:   schedule.EndTime,
-			}
+			schedules[i] = WeeklySchedule(schedule)
 		}
 
 		result[email] = &WorkingHours{

@@ -37,7 +37,7 @@ func NewNLPProcessor() NLPProcessor {
 }
 
 func (n *nlpProcessorImpl) ExtractEventDetails(ctx context.Context, text string) (*EventDetails, error) {
-	ctx, span := n.tracer.Start(ctx, "ExtractEventDetails")
+	span := trace.SpanFromContext(ctx)
 	defer span.End()
 
 	span.SetAttributes(attribute.Int("text.length", len(text)))

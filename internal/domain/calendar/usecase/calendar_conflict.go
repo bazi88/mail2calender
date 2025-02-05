@@ -103,28 +103,28 @@ func (cc *conflictCheckerImpl) CheckConflicts(ctx context.Context, event *Calend
 }
 
 func (cc *conflictCheckerImpl) checkRecurringConflict(event1, event2 *CalendarEvent) bool {
-    // If either event is not recurring, just check for time overlap
-    if event1.RecurrenceRule == "" || event2.RecurrenceRule == "" {
-        if event1.RecurrenceRule == "" {
-            return cc.checkTimeOverlap(event1.StartTime, event1.EndTime, event2.StartTime, event2.EndTime)
-        }
-        return cc.checkTimeOverlap(event2.StartTime, event2.EndTime, event1.StartTime, event1.EndTime)
-    }
+	// If either event is not recurring, just check for time overlap
+	if event1.RecurrenceRule == "" || event2.RecurrenceRule == "" {
+		if event1.RecurrenceRule == "" {
+			return cc.checkTimeOverlap(event1.StartTime, event1.EndTime, event2.StartTime, event2.EndTime)
+		}
+		return cc.checkTimeOverlap(event2.StartTime, event2.EndTime, event1.StartTime, event1.EndTime)
+	}
 
-    // For daily recurring events, if their times overlap on any day, they conflict
-    if event1.RecurrenceRule == "FREQ=DAILY" && event2.RecurrenceRule == "FREQ=DAILY" {
-        baseTime := time.Date(2000, 1, 1, 
-            event1.StartTime.Hour(), event1.StartTime.Minute(), event1.StartTime.Second(), 0, time.UTC)
-        event1End := baseTime.Add(event1.EndTime.Sub(event1.StartTime))
-        
-        event2Start := time.Date(2000, 1, 1,
-            event2.StartTime.Hour(), event2.StartTime.Minute(), event2.StartTime.Second(), 0, time.UTC)
-        event2End := event2Start.Add(event2.EndTime.Sub(event2.StartTime))
-        
-        return cc.checkTimeOverlap(baseTime, event1End, event2Start, event2End)
-    }
+	// For daily recurring events, if their times overlap on any day, they conflict
+	if event1.RecurrenceRule == "FREQ=DAILY" && event2.RecurrenceRule == "FREQ=DAILY" {
+		baseTime := time.Date(2000, 1, 1,
+			event1.StartTime.Hour(), event1.StartTime.Minute(), event1.StartTime.Second(), 0, time.UTC)
+		event1End := baseTime.Add(event1.EndTime.Sub(event1.StartTime))
 
-    return false
+		event2Start := time.Date(2000, 1, 1,
+			event2.StartTime.Hour(), event2.StartTime.Minute(), event2.StartTime.Second(), 0, time.UTC)
+		event2End := event2Start.Add(event2.EndTime.Sub(event2.StartTime))
+
+		return cc.checkTimeOverlap(baseTime, event1End, event2Start, event2End)
+	}
+
+	return false
 }
 
 func (cc *conflictCheckerImpl) checkTimeOverlap(start1, end1, start2, end2 time.Time) bool {
@@ -136,7 +136,7 @@ func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *
 	// This can be enhanced based on working hours and other constraints
 	duration := event.EndTime.Sub(event.StartTime)
 	alternatives := make([]TimeSlot, 0)
-	
+
 	proposedStart := event.EndTime
 	for i := 0; i < 3; i++ { // Suggest up to 3 alternative slots
 		alternatives = append(alternatives, TimeSlot{
@@ -145,7 +145,7 @@ func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *
 		})
 		proposedStart = proposedStart.Add(time.Hour) // Next slot starts an hour later
 	}
-	
+
 	return alternatives
 }
 
@@ -228,15 +228,6 @@ func (cc *conflictCheckerImpl) timeSlotOverlaps(slot1, slot2 TimeSlot) bool {
 	return !(slot1.End.Before(slot2.Start) || slot1.Start.After(slot2.End))
 }
 
-func (cc *conflictCheckerImpl) datesOverlap(start1, end1, start2, end2 time.Time) bool {
-	date1Start := time.Date(start1.Year(), start1.Month(), start1.Day(), 0, 0, 0, 0, start1.Location())
-	date1End := time.Date(end1.Year(), end1.Month(), end1.Day(), 23, 59, 59, 0, end1.Location())
-	date2Start := time.Date(start2.Year(), start2.Month(), start2.Day(), 0, 0, 0, 0, start2.Location())
-	date2End := time.Date(end2.Year(), end2.Month(), end2.Day(), 23, 59, 59, 0, end2.Location())
-
-	return !(date1End.Before(date2Start) || date1Start.After(date2End))
-}
-
 func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
 	if len(periods) <= 1 {
 		return periods
@@ -258,26 +249,6 @@ func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
 	merged = append(merged, current)
 
 	return merged
-}
-
-func minTime(t1, t2 time.Time) time.Time {
-	if t1.Before(t2) {
-		return t1
-	}
-	return t2
-}
-
-func maxTime(t1, t2 time.Time) time.Time {
-	if t1.After(t2) {
-		return t1
-	}
-	return t2
-}
-
-func (cc *conflictCheckerImpl) checkDailyRecurrenceOverlap(event1, event2 *CalendarEvent) bool {
-	// Daily recurrence overlap logic
-	// This is a placeholder, you need to implement the actual logic
-	return false
 }
 
 func (cc *conflictCheckerImpl) expandRecurringEvent(event *CalendarEvent, timeRange TimeRange) []TimeSlot {

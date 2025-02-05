@@ -117,11 +117,6 @@ func (r *rateLimiterImpl) GetRemainingQuota(ctx context.Context, userID string) 
 	return remaining, nil
 }
 
-// Helper function to create Redis key for rate limiting
-func (r *rateLimiterImpl) getRedisKey(userID string) string {
-	return fmt.Sprintf("%s:%s", r.config.RedisKeyPrefix, userID)
-}
-
 // Example usage in CalendarService:
 /*
 type CalendarService struct {

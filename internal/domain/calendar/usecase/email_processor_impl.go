@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/mail"
@@ -82,7 +81,7 @@ func (ep *emailProcessorImpl) ProcessEmail(ctx context.Context, emailContent str
 }
 
 func (ep *emailProcessorImpl) extractEmailContent(ctx context.Context, msg *mail.Message) (*EmailContent, error) {
-	ctx, span := ep.tracer.Start(ctx, "extractEmailContent")
+	span := trace.SpanFromContext(ctx)
 	defer span.End()
 
 	content := &EmailContent{}
@@ -107,7 +106,7 @@ func (ep *emailProcessorImpl) extractEmailContent(ctx context.Context, msg *mail
 				continue // Skip problematic parts
 			}
 
-			partContent, err := ioutil.ReadAll(part)
+			partContent, err := io.ReadAll(part)
 			if err != nil {
 				continue
 			}
@@ -133,7 +132,7 @@ func (ep *emailProcessorImpl) extractEmailContent(ctx context.Context, msg *mail
 		}
 	} else {
 		// Handle single part messages
-		body, err := ioutil.ReadAll(msg.Body)
+		body, err := io.ReadAll(msg.Body)
 		if err == nil {
 			if strings.HasPrefix(mediaType, "text/html") {
 				content.HTML = string(body)
@@ -218,21 +217,21 @@ func (ep *emailProcessorImpl) parseAddressList(addresses string) []*mail.Address
 	return nil
 }
 
-func (ep *emailProcessorImpl) ValidateEmail(ctx context.Context, emailContent string) error {
-	ctx, span := ep.tracer.Start(ctx, "ValidateEmail")
+func (ep *emailProcessorImpl) ValidateEmail(ctx context.Context, email string) error {
+	span := trace.SpanFromContext(ctx)
 	defer span.End()
 
-	if err := ep.validator.ValidateDKIM(emailContent); err != nil {
+	if err := ep.validator.ValidateDKIM(email); err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("DKIM validation failed: %v", err)
 	}
 
-	if err := ep.validator.ValidateSPF(emailContent); err != nil {
+	if err := ep.validator.ValidateSPF(email); err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("SPF validation failed: %v", err)
 	}
 
-	if err := ep.validator.ValidateSender(emailContent); err != nil {
+	if err := ep.validator.ValidateSender(email); err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("sender validation failed: %v", err)
 	}
@@ -241,7 +240,7 @@ func (ep *emailProcessorImpl) ValidateEmail(ctx context.Context, emailContent st
 }
 
 func (ep *emailProcessorImpl) parseEmail(ctx context.Context, emailContent string) (*mail.Message, error) {
-	ctx, span := ep.tracer.Start(ctx, "parseEmail")
+	span := trace.SpanFromContext(ctx)
 	defer span.End()
 
 	msg, err := mail.ReadMessage(strings.NewReader(emailContent))

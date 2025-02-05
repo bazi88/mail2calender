@@ -9,9 +9,11 @@ import (
 	"mono-golang/internal/domain/calendar/service"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // MessageQueueService defines the interface for async message processing
@@ -36,6 +38,7 @@ type messagingService struct {
 	config   QueueConfig
 	calendar service.CalendarService // Changed to use the correct interface
 	tracer   trace.Tracer
+	logger   *logrus.Logger
 }
 
 // EmailMessage represents a message in the queue
@@ -72,6 +75,7 @@ func NewMessageQueueService(config QueueConfig, calendar service.CalendarService
 		config:   config,
 		calendar: calendar,
 		tracer:   otel.Tracer("message-queue-service"),
+		logger:   logrus.New(),
 	}, nil
 }
 
@@ -137,7 +141,9 @@ func (s *messagingService) ProcessMessages(ctx context.Context) error {
 			var emailMsg EmailMessage
 			if err := json.Unmarshal(msg.Body, &emailMsg); err != nil {
 				span.RecordError(err)
-				s.moveToDeadLetter(processCtx, msg)
+				if err := s.moveToDeadLetter(processCtx, msg); err != nil {
+					s.logger.Error("Failed to move message to dead letter queue", zap.Error(err))
+				}
 				span.End()
 				continue
 			}
@@ -151,12 +157,18 @@ func (s *messagingService) ProcessMessages(ctx context.Context) error {
 			if err != nil {
 				span.RecordError(err)
 				if emailMsg.RetryCount < s.config.MaxRetries {
-					s.retryMessage(processCtx, emailMsg)
+					if err := s.retryMessage(processCtx, emailMsg); err != nil {
+						s.logger.Error("Failed to retry message", zap.Error(err))
+					}
 				} else {
-					s.moveToDeadLetter(processCtx, msg)
+					if err := s.moveToDeadLetter(processCtx, msg); err != nil {
+						s.logger.Error("Failed to move message to dead letter queue", zap.Error(err))
+					}
 				}
 			} else {
-				msg.Ack(false)
+				if err := msg.Ack(false); err != nil {
+					s.logger.Error("Failed to acknowledge message", zap.Error(err))
+				}
 			}
 
 			span.End()
