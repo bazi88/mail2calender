@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"path/filepath"
-	"strings"
 
 	"github.com/h2non/filetype"
 )
@@ -48,31 +48,43 @@ func (s *service) ValidateFile(file *multipart.FileHeader) error {
 
 	f, err := file.Open()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
 
-	// Read file header for MIME type detection
-	head := make([]byte, 261)
-	if _, err := f.Read(head); err != nil && err != io.EOF {
-		return err
-	}
-
-	kind, err := filetype.Match(head)
+	// Read file content for validation
+	data, err := io.ReadAll(f)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read file content: %w", err)
 	}
 
-	allowed := false
-	for _, t := range AllowedTypes {
-		if strings.HasPrefix(t, kind.MIME.Value) {
-			allowed = true
+	// Check file type
+	kind, err := filetype.Match(data)
+	if err != nil || kind == filetype.Unknown {
+		return errors.New("invalid or unsupported file type")
+	}
+
+	// Validate MIME type
+	validType := false
+	for _, allowedType := range AllowedTypes {
+		if kind.MIME.Value == allowedType {
+			validType = true
 			break
 		}
 	}
 
-	if !allowed {
+	if !validType {
 		return errors.New("file type not allowed")
+	}
+
+	// Scan for viruses
+	clean, err := s.scanner.Scan(data)
+	if err != nil {
+		return fmt.Errorf("virus scan failed: %w", err)
+	}
+
+	if !clean {
+		return errors.New("file appears to be infected")
 	}
 
 	return nil

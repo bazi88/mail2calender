@@ -10,7 +10,7 @@
 2. Email Processing
    - [x] IMAP connection
    - [x] Email parsing
-   - [ ] Attachment handling
+   - [x] Attachment handling
    - [ ] Email filtering
 
 3. NER Service
