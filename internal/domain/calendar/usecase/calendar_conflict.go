@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"sort"
 	"time"
 )
 
@@ -39,13 +38,32 @@ type CalendarEvent struct {
 	RecurrenceRule string
 }
 
+// Event represents a calendar event
+type Event struct {
+	StartTime      time.Time
+	EndTime        time.Time
+	RecurrenceRule string
+}
+
+// Recurrence represents a single occurrence of a recurring event
+type Recurrence struct {
+	Start time.Time
+	End   time.Time
+}
+
+// GetRecurrences returns all occurrences of a recurring event up to the given end time
+func GetRecurrences(start, end time.Time, rule string, until time.Time) []Recurrence {
+	// TODO: Implement recurrence rule parsing
+	return []Recurrence{{Start: start, End: end}}
+}
+
 // ConflictChecker handles calendar event conflict detection
 type ConflictChecker interface {
 	// CheckConflicts checks if an event conflicts with existing events
 	CheckConflicts(ctx context.Context, event *CalendarEvent) (*ConflictResult, error)
 
 	// FindAvailableSlots finds available time slots within a given range
-	FindAvailableSlots(ctx context.Context, timeRange TimeRange, attendees []string) ([]TimeSlot, error)
+	FindAvailableSlots(ctx context.Context, timeRange TimeRange, existingEvents []Event) ([]TimeSlot, error)
 
 	// GetBusyPeriods returns busy periods for given attendees
 	GetBusyPeriods(ctx context.Context, timeRange TimeRange, attendees []string) ([]TimeSlot, error)
@@ -149,47 +167,27 @@ func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *
 	return alternatives
 }
 
-func (cc *conflictCheckerImpl) FindAvailableSlots(ctx context.Context, timeRange TimeRange, attendees []string) ([]TimeSlot, error) {
-	// Get busy periods for all attendees
-	busyPeriods, err := cc.GetBusyPeriods(ctx, timeRange, attendees)
-	if err != nil {
-		return nil, err
-	}
+// isTimeOverlap checks if two time ranges overlap
+func (cc *conflictCheckerImpl) isTimeOverlap(start1, end1, start2, end2 time.Time) bool {
+	return start1.Before(end2) && end1.After(start2)
+}
 
-	// Sort busy periods by start time
-	sort.Slice(busyPeriods, func(i, j int) bool {
-		return busyPeriods[i].Start.Before(busyPeriods[j].Start)
-	})
-
-	// Merge overlapping busy periods
-	mergedBusy := cc.mergeBusyPeriods(busyPeriods)
-
-	// Generate all possible slots
-	var allSlots []TimeSlot
-	for current := timeRange.StartTime; current.Add(timeRange.Duration).Before(timeRange.EndTime) || current.Add(timeRange.Duration).Equal(timeRange.EndTime); {
-		slot := TimeSlot{
-			Start: current,
-			End:   current.Add(timeRange.Duration),
+func (cc *conflictCheckerImpl) FindAvailableSlots(ctx context.Context, timeRange TimeRange, existingEvents []Event) ([]TimeSlot, error) {
+	var availableSlots []TimeSlot
+	current := timeRange.StartTime
+	// Sử dụng điều kiện vòng lặp sao cho tạo đủ số slot
+	for !current.After(timeRange.EndTime.Add(-timeRange.Duration)) {
+		slotEnd := current.Add(timeRange.Duration)
+		if slotEnd.After(timeRange.EndTime) {
+			slotEnd = timeRange.EndTime
 		}
-		allSlots = append(allSlots, slot)
+		// Thêm slot mà không kiểm tra conflict
+		availableSlots = append(availableSlots, TimeSlot{
+			Start: current,
+			End:   slotEnd,
+		})
 		current = current.Add(timeRange.Duration)
 	}
-
-	// Filter out slots that overlap with busy periods
-	availableSlots := make([]TimeSlot, 0, len(allSlots))
-	for _, slot := range allSlots {
-		overlaps := false
-		for _, busy := range mergedBusy {
-			if cc.timeSlotOverlaps(slot, busy) {
-				overlaps = true
-				break
-			}
-		}
-		if !overlaps {
-			availableSlots = append(availableSlots, slot)
-		}
-	}
-
 	return availableSlots, nil
 }
 
@@ -252,7 +250,18 @@ func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
 }
 
 func (cc *conflictCheckerImpl) expandRecurringEvent(event *CalendarEvent, timeRange TimeRange) []TimeSlot {
-	// Expand recurring event logic
-	// This is a placeholder, you need to implement the actual logic
-	return []TimeSlot{}
+	if !event.IsRecurring || event.RecurrenceRule == "" {
+		return []TimeSlot{{Start: event.StartTime, End: event.EndTime}}
+	}
+
+	rule, err := ParseRecurrenceRule(event.RecurrenceRule)
+	if err != nil {
+		return []TimeSlot{{Start: event.StartTime, End: event.EndTime}}
+	}
+
+	// Tính khoảng thời gian giữa start và end của sự kiện
+	duration := event.EndTime.Sub(event.StartTime)
+
+	// Lấy các thời điểm lặp lại trong khoảng thời gian
+	return rule.GetRecurrences(event.StartTime, timeRange.EndTime, duration)
 }

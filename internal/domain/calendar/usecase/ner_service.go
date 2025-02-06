@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -92,12 +93,50 @@ func (s *nerServiceImpl) ExtractDateTime(ctx context.Context, text string) ([]ti
 	}
 
 	var dates []time.Time
+	var dateEntity, timeEntity *Entity
+
+	// First pass: find DATE and TIME entities
 	for _, entity := range entities {
-		if strings.EqualFold(entity.Label, "TIME") || strings.EqualFold(entity.Label, "DATE") {
-			// Parse date/time text using various formats
-			t, err := parseDateTime(s.tzUtil, entity.Text)
-			if err == nil {
-				dates = append(dates, t)
+		if strings.EqualFold(entity.Label, "DATE") {
+			dateEntity = &entity
+		} else if strings.EqualFold(entity.Label, "TIME") {
+			timeEntity = &entity
+		}
+	}
+
+	// If we have both date and time, combine them
+	if dateEntity != nil && timeEntity != nil {
+		// Parse date first
+		dateTime, err := parseDateTime(s.tzUtil, dateEntity.Text)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse time and combine with date
+		timeOnly, err := parseDateTime(s.tzUtil, timeEntity.Text)
+		if err != nil {
+			return nil, err
+		}
+
+		// Combine date and time
+		combinedTime := time.Date(
+			dateTime.Year(),
+			dateTime.Month(),
+			dateTime.Day(),
+			timeOnly.Hour(),
+			timeOnly.Minute(),
+			0, 0,
+			dateTime.Location(),
+		)
+		dates = append(dates, combinedTime)
+	} else {
+		// If we only have one entity, try to parse it
+		for _, entity := range entities {
+			if strings.EqualFold(entity.Label, "TIME") || strings.EqualFold(entity.Label, "DATE") {
+				t, err := parseDateTime(s.tzUtil, entity.Text)
+				if err == nil {
+					dates = append(dates, t)
+				}
 			}
 		}
 	}
@@ -133,6 +172,16 @@ func (s *nerServiceImpl) ExtractLocation(ctx context.Context, text string) (stri
 func parseDateTime(tzUtil *TimezoneUtil, text string) (time.Time, error) {
 	text = strings.TrimSpace(text)
 
+	// Xử lý các từ khóa thời gian tự nhiên
+	switch strings.ToLower(text) {
+	case "tomorrow":
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.Local), nil
+	case "today":
+		now := time.Now()
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local), nil
+	}
+
 	// Check for timezone abbreviation in the text
 	var timezoneName string
 	for tzAbbr := range getTimezoneAbbreviations() {
@@ -148,6 +197,38 @@ func parseDateTime(tzUtil *TimezoneUtil, text string) (time.Time, error) {
 		timezoneName = tzUtil.defaultTimezone
 	}
 
+	// Handle natural language time format (e.g., "3pm")
+	if strings.HasSuffix(strings.ToLower(text), "pm") || strings.HasSuffix(strings.ToLower(text), "am") {
+		hour := 0
+		meridiem := strings.ToLower(text[len(text)-2:])
+		hourStr := strings.TrimSuffix(strings.TrimSuffix(text, "pm"), "am")
+
+		if h, err := strconv.Atoi(hourStr); err == nil {
+			if meridiem == "pm" && h < 12 {
+				hour = h + 12
+			} else if meridiem == "am" && h == 12 {
+				hour = 0
+			} else {
+				hour = h
+			}
+			now := time.Now()
+			return time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, time.Local), nil
+		}
+	}
+
+	// Handle HH:MM format
+	if strings.Contains(text, ":") {
+		parts := strings.Split(text, ":")
+		if len(parts) == 2 {
+			hour, errHour := strconv.Atoi(parts[0])
+			minute, errMin := strconv.Atoi(parts[1])
+			if errHour == nil && errMin == nil {
+				now := time.Now()
+				return time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, time.Local), nil
+			}
+		}
+	}
+
 	// Common formats to try
 	formats := []string{
 		"2006-01-02T15:04:05Z07:00",       // ISO
@@ -161,8 +242,6 @@ func parseDateTime(tzUtil *TimezoneUtil, text string) (time.Time, error) {
 		"02/01/2006",                      // DD/MM/YYYY
 		"02-01-2006",                      // DD-MM-YYYY
 		"15:04 02/01/2006",                // HH:MM DD/MM/YYYY
-		"3:04PM",                          // Local time 12h
-		"15:04",                           // 24h time
 		"January 2, 2006",                 // Month D, YYYY
 		"Jan 2, 2006",                     // Mon D, YYYY
 		"2006-01-02",                      // YYYY-MM-DD

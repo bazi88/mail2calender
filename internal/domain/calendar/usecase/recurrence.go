@@ -29,7 +29,7 @@ const (
 	Sunday    Weekday = "SU"
 )
 
-// RecurrenceRule represents a parsed recurrence rule
+// RecurrenceRule represents a recurring event rule
 type RecurrenceRule struct {
 	Frequency  string
 	Count      *int
@@ -39,7 +39,7 @@ type RecurrenceRule struct {
 	ByMonthDay []int
 }
 
-// ParseRecurrenceRule parses an iCal-style recurrence rule
+// ParseRecurrenceRule parses an RRULE string into a RecurrenceRule struct
 func ParseRecurrenceRule(ruleStr string) (*RecurrenceRule, error) {
 	if !strings.HasPrefix(ruleStr, "RRULE:") {
 		return nil, fmt.Errorf("invalid recurrence rule format: missing RRULE prefix")
@@ -105,7 +105,7 @@ func ParseRecurrenceRule(ruleStr string) (*RecurrenceRule, error) {
 	return rule, nil
 }
 
-// GetRecurrences returns all occurrences within the specified range
+// GetRecurrences returns all recurrence times within the given range
 func (r *RecurrenceRule) GetRecurrences(start time.Time, end time.Time, duration time.Duration) []TimeSlot {
 	var slots []TimeSlot
 	count := 0

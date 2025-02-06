@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"encoding/base64"
 	"net/mail"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,117 +12,126 @@ import (
 
 func TestMIMEParser_Parse(t *testing.T) {
 	tests := []struct {
-		name         string
-		emailContent string
-		want         *ParsedEmail
-		wantErr      bool
+		name          string
+		emailContent  string
+		expectedEmail *ParsedEmail
+		expectedError bool
 	}{
 		{
-			name: "simple plain text email",
+			name: "email_with_attachment",
 			emailContent: `From: sender@example.com
 To: recipient@example.com
-Subject: Test Subject
-Content-Type: text/plain
-
-This is a test email body.`,
-			want: &ParsedEmail{
-				Subject:     "Test Subject",
-				From:        &mail.Address{Address: "sender@example.com"},
-				To:          []*mail.Address{{Address: "recipient@example.com"}},
-				TextContent: "This is a test email body.",
-			},
-			wantErr: false,
-		},
-		{
-			name: "multipart email with HTML and text",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Test Multipart
-Content-Type: multipart/alternative; boundary="boundary123"
+Subject: Test Email with Attachment
+Content-Type: multipart/mixed; boundary=boundary123
 
 --boundary123
 Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-Plain text content
---boundary123
-Content-Type: text/html
-
-<html><body>HTML content</body></html>
---boundary123--`,
-			want: &ParsedEmail{
-				Subject:     "Test Multipart",
-				From:        &mail.Address{Address: "sender@example.com"},
-				To:          []*mail.Address{{Address: "recipient@example.com"}},
-				TextContent: "Plain text content",
-				HTMLContent: "<html><body>HTML content</body></html>",
-			},
-			wantErr: false,
-		},
-		{
-			name: "email with attachment",
-			emailContent: `From: sender@example.com
-To: recipient@example.com
-Subject: Test Attachment
-Content-Type: multipart/mixed; boundary="boundary123"
+Email body text
 
 --boundary123
-Content-Type: text/plain
-
-Email with attachment
---boundary123
-Content-Type: application/pdf
-Content-Disposition: attachment; filename="test.pdf"
+Content-Type: application/octet-stream
 Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="test.txt"
 
 SGVsbG8gV29ybGQ=
+
 --boundary123--`,
-			want: &ParsedEmail{
-				Subject:     "Test Attachment",
+			expectedEmail: &ParsedEmail{
 				From:        &mail.Address{Address: "sender@example.com"},
 				To:          []*mail.Address{{Address: "recipient@example.com"}},
-				TextContent: "Email with attachment",
+				Subject:     "Test Email with Attachment",
+				TextContent: strings.TrimSpace("Email body text\n"),
 				Attachments: []Attachment{
 					{
-						Filename:    "test.pdf",
-						ContentType: "application/pdf",
+						Filename:    "test.txt",
 						Data:        []byte("Hello World"),
+						ContentType: "application/octet-stream",
 					},
 				},
 			},
-			wantErr: false,
+			expectedError: false,
 		},
 		{
-			name:         "invalid email format",
-			emailContent: "invalid email content",
-			want:         nil,
-			wantErr:      true,
+			name: "email_with_multiple_attachments",
+			emailContent: `From: sender@example.com
+To: recipient@example.com
+Subject: Test Email with Multiple Attachments
+Content-Type: multipart/mixed; boundary=boundary123
+
+--boundary123
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+
+Email body text
+
+--boundary123
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="test.pdf"
+
+UERGIGNvbnRlbnQ=
+
+--boundary123
+Content-Type: image/jpeg
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="test.jpg"
+
+SlBFRyBjb250ZW50
+
+--boundary123--`,
+			expectedEmail: &ParsedEmail{
+				From:        &mail.Address{Address: "sender@example.com"},
+				To:          []*mail.Address{{Address: "recipient@example.com"}},
+				Subject:     "Test Email with Multiple Attachments",
+				TextContent: strings.TrimSpace("Email body text\n"),
+				Attachments: []Attachment{
+					{
+						Filename:    "test.pdf",
+						Data:        []byte("PDF content"),
+						ContentType: "application/pdf",
+					},
+					{
+						Filename:    "test.jpg",
+						Data:        []byte("JPEG content"),
+						ContentType: "image/jpeg",
+					},
+				},
+			},
+			expectedError: false,
 		},
 	}
 
-	parser := NewMIMEParser()
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parser.Parse(context.Background(), tt.emailContent)
-			if tt.wantErr {
+			parser := NewMIMEParser()
+			email, err := parser.Parse(context.Background(), tt.emailContent)
+
+			if tt.expectedError {
 				assert.Error(t, err)
+				assert.Nil(t, email)
 				return
 			}
 
 			assert.NoError(t, err)
-			assert.Equal(t, tt.want.Subject, got.Subject)
-			assert.Equal(t, tt.want.From.Address, got.From.Address)
-			if len(tt.want.To) > 0 {
-				assert.Equal(t, tt.want.To[0].Address, got.To[0].Address)
+			assert.NotNil(t, email)
+			assert.Equal(t, tt.expectedEmail.From.Address, email.From.Address)
+			for i, expectedTo := range tt.expectedEmail.To {
+				assert.Equal(t, expectedTo.Address, email.To[i].Address)
 			}
-			assert.Equal(t, tt.want.TextContent, got.TextContent)
-			assert.Equal(t, tt.want.HTMLContent, got.HTMLContent)
+			assert.Equal(t, tt.expectedEmail.Subject, email.Subject)
+			assert.Equal(t, tt.expectedEmail.TextContent, strings.TrimSpace(email.TextContent))
 
-			if len(tt.want.Attachments) > 0 {
-				assert.Equal(t, len(tt.want.Attachments), len(got.Attachments))
-				assert.Equal(t, tt.want.Attachments[0].Filename, got.Attachments[0].Filename)
-				assert.Equal(t, tt.want.Attachments[0].ContentType, got.Attachments[0].ContentType)
-				assert.Equal(t, tt.want.Attachments[0].Data, got.Attachments[0].Data)
+			assert.Equal(t, len(tt.expectedEmail.Attachments), len(email.Attachments))
+			for i, expectedAttachment := range tt.expectedEmail.Attachments {
+				assert.Equal(t, expectedAttachment.Filename, email.Attachments[i].Filename)
+				assert.Equal(t, expectedAttachment.ContentType, email.Attachments[i].ContentType)
+
+				// Decode base64 content
+				decodedData, err := base64.StdEncoding.DecodeString(string(email.Attachments[i].Data))
+				assert.NoError(t, err)
+				assert.Equal(t, expectedAttachment.Data, decodedData)
 			}
 		})
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestRedis(t *testing.T) (*redis.Client, func()) {
+func setupTestRedis(t *testing.T) (*redis.Client, *miniredis.Miniredis, func()) {
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 
@@ -19,14 +19,14 @@ func setupTestRedis(t *testing.T) (*redis.Client, func()) {
 		Addr: mr.Addr(),
 	})
 
-	return client, func() {
+	return client, mr, func() {
 		client.Close()
 		mr.Close()
 	}
 }
 
 func TestRateLimiter_Allow(t *testing.T) {
-	redisClient, cleanup := setupTestRedis(t)
+	redisClient, mr, cleanup := setupTestRedis(t)
 	defer cleanup()
 
 	config := RateLimiterConfig{
@@ -40,27 +40,24 @@ func TestRateLimiter_Allow(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		setup     func()
+		setup     func(mr *miniredis.Miniredis)
 		userID    string
 		wantAllow bool
 		wantErr   bool
 	}{
 		{
 			name:      "first request should be allowed",
-			setup:     func() {},
+			setup:     func(mr *miniredis.Miniredis) {},
 			userID:    "user1",
 			wantAllow: true,
 			wantErr:   false,
 		},
 		{
 			name: "should respect hourly limit",
-			setup: func() {
-				// Simulate 10 previous requests
-				for i := 0; i < 10; i++ {
-					allowed, err := limiter.Allow(ctx, "user2")
-					require.NoError(t, err)
-					require.True(t, allowed)
-				}
+			setup: func(mr *miniredis.Miniredis) {
+				// Giả lập đã có 10 request trong giờ
+				mr.Set("test:user2:hour", "10")
+				mr.SetTTL("test:user2:hour", time.Hour)
 			},
 			userID:    "user2",
 			wantAllow: false,
@@ -68,23 +65,31 @@ func TestRateLimiter_Allow(t *testing.T) {
 		},
 		{
 			name: "should respect burst limit",
-			setup: func() {
-				// Simulate 3 quick requests
-				for i := 0; i < 3; i++ {
-					allowed, err := limiter.Allow(ctx, "user3")
-					require.NoError(t, err)
-					require.True(t, allowed)
-				}
+			setup: func(mr *miniredis.Miniredis) {
+				// Giả lập đã có 3 request trong phút
+				mr.Set("test:user3:burst", "3")
+				mr.SetTTL("test:user3:burst", time.Minute)
 			},
 			userID:    "user3",
 			wantAllow: false,
 			wantErr:   false,
 		},
+		{
+			name: "should handle redis error",
+			setup: func(mr *miniredis.Miniredis) {
+				mr.SetError("simulated error")
+			},
+			userID:    "user4",
+			wantAllow: false,
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setup()
+			// Reset Redis state
+			mr.FlushAll()
+			tt.setup(mr)
 
 			allowed, err := limiter.Allow(ctx, tt.userID)
 			if tt.wantErr {
@@ -99,7 +104,7 @@ func TestRateLimiter_Allow(t *testing.T) {
 }
 
 func TestRateLimiter_GetRemainingQuota(t *testing.T) {
-	redisClient, cleanup := setupTestRedis(t)
+	redisClient, mr, cleanup := setupTestRedis(t)
 	defer cleanup()
 
 	config := RateLimiterConfig{
@@ -113,26 +118,24 @@ func TestRateLimiter_GetRemainingQuota(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		setup         func()
+		setup         func(mr *miniredis.Miniredis)
 		userID        string
 		wantRemaining int64
 		wantErr       bool
 	}{
 		{
 			name:          "new user should have full quota",
-			setup:         func() {},
+			setup:         func(mr *miniredis.Miniredis) {},
 			userID:        "user1",
 			wantRemaining: 10,
 			wantErr:       false,
 		},
 		{
 			name: "should return correct remaining quota",
-			setup: func() {
-				// Make 3 requests
-				for i := 0; i < 3; i++ {
-					_, err := limiter.Allow(ctx, "user2")
-					require.NoError(t, err)
-				}
+			setup: func(mr *miniredis.Miniredis) {
+				// Giả lập đã sử dụng 3 request
+				mr.Set("test:user2:hour", "3")
+				mr.SetTTL("test:user2:hour", time.Hour)
 			},
 			userID:        "user2",
 			wantRemaining: 7,
@@ -140,22 +143,31 @@ func TestRateLimiter_GetRemainingQuota(t *testing.T) {
 		},
 		{
 			name: "should return zero when quota exceeded",
-			setup: func() {
-				// Make 10 requests
-				for i := 0; i < 10; i++ {
-					_, err := limiter.Allow(ctx, "user3")
-					require.NoError(t, err)
-				}
+			setup: func(mr *miniredis.Miniredis) {
+				// Giả lập đã sử dụng hết quota
+				mr.Set("test:user3:hour", "10")
+				mr.SetTTL("test:user3:hour", time.Hour)
 			},
 			userID:        "user3",
 			wantRemaining: 0,
 			wantErr:       false,
 		},
+		{
+			name: "should handle redis error",
+			setup: func(mr *miniredis.Miniredis) {
+				mr.SetError("simulated error")
+			},
+			userID:        "user4",
+			wantRemaining: 0,
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setup()
+			// Reset Redis state
+			mr.FlushAll()
+			tt.setup(mr)
 
 			remaining, err := limiter.GetRemainingQuota(ctx, tt.userID)
 			if tt.wantErr {
@@ -170,14 +182,8 @@ func TestRateLimiter_GetRemainingQuota(t *testing.T) {
 }
 
 func TestRateLimiter_Expiration(t *testing.T) {
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	defer mr.Close()
-
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: mr.Addr(),
-	})
-	defer redisClient.Close()
+	redisClient, mr, cleanup := setupTestRedis(t)
+	defer cleanup()
 
 	config := RateLimiterConfig{
 		RequestsPerHour: 10,
@@ -189,13 +195,11 @@ func TestRateLimiter_Expiration(t *testing.T) {
 	ctx := context.Background()
 	userID := "user1"
 
-	// Make some requests
-	for i := 0; i < 5; i++ {
-		_, err := limiter.Allow(ctx, userID)
-		require.NoError(t, err)
-	}
+	// Giả lập đã sử dụng 5 request
+	mr.Set("test:user1:hour", "5")
+	mr.SetTTL("test:user1:hour", time.Hour)
 
-	// Check quota
+	// Kiểm tra quota
 	remaining, err := limiter.GetRemainingQuota(ctx, userID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), remaining)
@@ -203,7 +207,7 @@ func TestRateLimiter_Expiration(t *testing.T) {
 	// Fast forward time
 	mr.FastForward(time.Hour)
 
-	// Check quota again - should be reset
+	// Kiểm tra quota lại - phải được reset
 	remaining, err = limiter.GetRemainingQuota(ctx, userID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(10), remaining)

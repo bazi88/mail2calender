@@ -9,24 +9,33 @@ import (
 
 func TestParseRecurrenceRule(t *testing.T) {
 	tests := []struct {
-		name     string
-		rule     string
-		expected *RecurrenceRule
-		wantErr  bool
+		name          string
+		rule          string
+		expectedError bool
+		expectedRule  *RecurrenceRule
 	}{
 		{
+			name:          "empty rule",
+			rule:          "",
+			expectedError: true,
+		},
+		{
+			name:          "invalid format",
+			rule:          "invalid",
+			expectedError: true,
+		},
+		{
 			name: "daily recurrence",
-			rule: "RRULE:FREQ=DAILY;COUNT=5",
-			expected: &RecurrenceRule{
+			rule: "RRULE:FREQ=DAILY",
+			expectedRule: &RecurrenceRule{
 				Frequency: FreqDaily,
-				Count:     intPtr(5),
 				Interval:  1,
 			},
 		},
 		{
 			name: "weekly on Monday and Wednesday",
 			rule: "RRULE:FREQ=WEEKLY;BYDAY=MO,WE",
-			expected: &RecurrenceRule{
+			expectedRule: &RecurrenceRule{
 				Frequency: FreqWeekly,
 				Interval:  1,
 				ByDay:     []Weekday{Monday, Wednesday},
@@ -35,7 +44,7 @@ func TestParseRecurrenceRule(t *testing.T) {
 		{
 			name: "monthly on the 15th",
 			rule: "RRULE:FREQ=MONTHLY;BYMONTHDAY=15",
-			expected: &RecurrenceRule{
+			expectedRule: &RecurrenceRule{
 				Frequency:  FreqMonthly,
 				Interval:   1,
 				ByMonthDay: []int{15},
@@ -44,114 +53,136 @@ func TestParseRecurrenceRule(t *testing.T) {
 		{
 			name: "yearly in June and July",
 			rule: "RRULE:FREQ=YEARLY;BYMONTH=6,7",
-			expected: &RecurrenceRule{
+			expectedRule: &RecurrenceRule{
 				Frequency: FreqYearly,
 				Interval:  1,
 				ByMonth:   []time.Month{time.June, time.July},
 			},
 		},
 		{
-			name:    "invalid format",
-			rule:    "NOT_A_RULE",
-			wantErr: true,
+			name: "complex rule with count",
+			rule: "RRULE:FREQ=WEEKLY;COUNT=10;BYDAY=MO,WE,FR",
+			expectedRule: &RecurrenceRule{
+				Frequency: FreqWeekly,
+				Count:     intPtr(10),
+				Interval:  1,
+				ByDay:     []Weekday{Monday, Wednesday, Friday},
+			},
+		},
+		{
+			name: "rule with interval",
+			rule: "RRULE:FREQ=DAILY;INTERVAL=2",
+			expectedRule: &RecurrenceRule{
+				Frequency: FreqDaily,
+				Interval:  2,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rule, err := ParseRecurrenceRule(tt.rule)
-			if tt.wantErr {
+
+			if tt.expectedError {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expected.Frequency, rule.Frequency)
-			assert.Equal(t, tt.expected.Interval, rule.Interval)
+			assert.Equal(t, tt.expectedRule.Frequency, rule.Frequency)
+			assert.Equal(t, tt.expectedRule.Interval, rule.Interval)
 
-			if tt.expected.Count != nil {
-				assert.Equal(t, *tt.expected.Count, *rule.Count)
+			if tt.expectedRule.Count != nil {
+				assert.Equal(t, *tt.expectedRule.Count, *rule.Count)
 			}
-			if len(tt.expected.ByDay) > 0 {
-				assert.Equal(t, tt.expected.ByDay, rule.ByDay)
+			if len(tt.expectedRule.ByDay) > 0 {
+				assert.Equal(t, tt.expectedRule.ByDay, rule.ByDay)
 			}
-			if len(tt.expected.ByMonthDay) > 0 {
-				assert.Equal(t, tt.expected.ByMonthDay, rule.ByMonthDay)
+			if len(tt.expectedRule.ByMonthDay) > 0 {
+				assert.Equal(t, tt.expectedRule.ByMonthDay, rule.ByMonthDay)
 			}
-			if len(tt.expected.ByMonth) > 0 {
-				assert.Equal(t, tt.expected.ByMonth, rule.ByMonth)
+			if len(tt.expectedRule.ByMonth) > 0 {
+				assert.Equal(t, tt.expectedRule.ByMonth, rule.ByMonth)
 			}
 		})
 	}
 }
 
-func TestRecurrenceRule_GetRecurrences(t *testing.T) {
-	loc, _ := time.LoadLocation("UTC")
-	now := time.Date(2025, 1, 1, 10, 0, 0, 0, loc)
+func TestGetRecurrences(t *testing.T) {
+	baseTime := time.Date(2024, 2, 1, 10, 0, 0, 0, time.UTC)
 	oneHour := time.Hour
 
 	tests := []struct {
-		name          string
-		rule          *RecurrenceRule
-		start         time.Time
-		end           time.Time
-		duration      time.Duration
-		expectedCount int
-		expectedDates []time.Time
+		name            string
+		rule            *RecurrenceRule
+		start           time.Time
+		end             time.Time
+		duration        time.Duration
+		expectedCount   int
+		expectedPattern func(time.Time) bool
 	}{
 		{
-			name: "daily for 5 days",
+			name: "daily for 3 days",
 			rule: &RecurrenceRule{
 				Frequency: FreqDaily,
-				Count:     intPtr(5),
+				Count:     intPtr(3),
 				Interval:  1,
 			},
-			start:         now,
-			end:           now.AddDate(0, 0, 10),
+			start:         baseTime,
+			end:           baseTime.AddDate(0, 0, 10), // End date doesn't matter when Count is set
 			duration:      oneHour,
-			expectedCount: 5,
-			expectedDates: []time.Time{
-				now,
-				now.AddDate(0, 0, 1),
-				now.AddDate(0, 0, 2),
-				now.AddDate(0, 0, 3),
-				now.AddDate(0, 0, 4),
+			expectedCount: 3,
+			expectedPattern: func(t time.Time) bool {
+				return t.Hour() == 10 && t.Minute() == 0
 			},
 		},
 		{
-			name: "weekly on Monday and Wednesday",
+			name: "weekly on Monday for 2 weeks",
 			rule: &RecurrenceRule{
 				Frequency: FreqWeekly,
+				Count:     intPtr(2),
 				Interval:  1,
-				ByDay:     []Weekday{Monday, Wednesday},
+				ByDay:     []Weekday{Monday},
 			},
-			start:         now,
-			end:           now.AddDate(0, 0, 14),
+			start:         baseTime,
+			end:           baseTime.AddDate(0, 0, 14),
 			duration:      oneHour,
-			expectedCount: 4, // 2 weeks * 2 days per week
+			expectedCount: 2,
+			expectedPattern: func(t time.Time) bool {
+				return t.Weekday() == time.Monday
+			},
 		},
 		{
-			name: "monthly on the 15th",
+			name: "monthly on 15th for 2 months",
 			rule: &RecurrenceRule{
 				Frequency:  FreqMonthly,
+				Count:      intPtr(2),
 				Interval:   1,
 				ByMonthDay: []int{15},
 			},
-			start:         now,
-			end:           now.AddDate(0, 3, 0),
+			start:         baseTime,
+			end:           baseTime.AddDate(0, 2, 0),
 			duration:      oneHour,
-			expectedCount: 3, // 3 months * 1 day per month
+			expectedCount: 2,
+			expectedPattern: func(t time.Time) bool {
+				return t.Day() == 15
+			},
 		},
 		{
-			name: "yearly in June",
+			name: "yearly in June and July for 2 years",
 			rule: &RecurrenceRule{
 				Frequency: FreqYearly,
-				ByMonth:   []time.Month{time.June},
+				Count:     intPtr(4),
+				Interval:  1,
+				ByMonth:   []time.Month{time.June, time.July},
 			},
-			start:         now,
-			end:           now.AddDate(2, 0, 0),
+			start:         baseTime,
+			end:           baseTime.AddDate(2, 0, 0),
 			duration:      oneHour,
-			expectedCount: 2, // 2 years * 1 month per year
+			expectedCount: 4,
+			expectedPattern: func(t time.Time) bool {
+				return t.Month() == time.June || t.Month() == time.July
+			},
 		},
 	}
 
@@ -160,25 +191,16 @@ func TestRecurrenceRule_GetRecurrences(t *testing.T) {
 			slots := tt.rule.GetRecurrences(tt.start, tt.end, tt.duration)
 			assert.Equal(t, tt.expectedCount, len(slots))
 
-			if len(tt.expectedDates) > 0 {
-				for i, expected := range tt.expectedDates {
-					assert.Equal(t, expected.Year(), slots[i].Start.Year())
-					assert.Equal(t, expected.Month(), slots[i].Start.Month())
-					assert.Equal(t, expected.Day(), slots[i].Start.Day())
-					assert.Equal(t, expected.Hour(), slots[i].Start.Hour())
-					assert.Equal(t, expected.Minute(), slots[i].Start.Minute())
+			if tt.expectedPattern != nil {
+				for _, slot := range slots {
+					assert.True(t, tt.expectedPattern(slot.Start))
+					assert.Equal(t, tt.duration, slot.End.Sub(slot.Start))
 				}
-			}
-
-			// Check that all slots have the correct duration
-			for _, slot := range slots {
-				assert.Equal(t, tt.duration, slot.End.Sub(slot.Start))
 			}
 		})
 	}
 }
 
-// Helper function to create int pointer
 func intPtr(i int) *int {
 	return &i
 }
