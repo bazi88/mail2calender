@@ -56,7 +56,9 @@ func TestRateLimiter_Allow(t *testing.T) {
 			name: "should respect hourly limit",
 			setup: func(mr *miniredis.Miniredis) {
 				// Giả lập đã có 10 request trong giờ
-				mr.Set("test:user2:hour", "10")
+				if err := mr.Set("test:user2:hour", "10"); err != nil {
+					t.Errorf("failed to set rate limit: %v", err)
+				}
 				mr.SetTTL("test:user2:hour", time.Hour)
 			},
 			userID:    "user2",
@@ -67,7 +69,9 @@ func TestRateLimiter_Allow(t *testing.T) {
 			name: "should respect burst limit",
 			setup: func(mr *miniredis.Miniredis) {
 				// Giả lập đã có 3 request trong phút
-				mr.Set("test:user3:burst", "3")
+				if err := mr.Set("test:user3:burst", "3"); err != nil {
+					t.Errorf("failed to set rate limit: %v", err)
+				}
 				mr.SetTTL("test:user3:burst", time.Minute)
 			},
 			userID:    "user3",
@@ -134,7 +138,9 @@ func TestRateLimiter_GetRemainingQuota(t *testing.T) {
 			name: "should return correct remaining quota",
 			setup: func(mr *miniredis.Miniredis) {
 				// Giả lập đã sử dụng 3 request
-				mr.Set("test:user2:hour", "3")
+				if err := mr.Set("test:user2:hour", "3"); err != nil {
+					t.Errorf("failed to set rate limit: %v", err)
+				}
 				mr.SetTTL("test:user2:hour", time.Hour)
 			},
 			userID:        "user2",
@@ -145,7 +151,9 @@ func TestRateLimiter_GetRemainingQuota(t *testing.T) {
 			name: "should return zero when quota exceeded",
 			setup: func(mr *miniredis.Miniredis) {
 				// Giả lập đã sử dụng hết quota
-				mr.Set("test:user3:hour", "10")
+				if err := mr.Set("test:user3:hour", "10"); err != nil {
+					t.Errorf("failed to set rate limit: %v", err)
+				}
 				mr.SetTTL("test:user3:hour", time.Hour)
 			},
 			userID:        "user3",
@@ -196,7 +204,9 @@ func TestRateLimiter_Expiration(t *testing.T) {
 	userID := "user1"
 
 	// Giả lập đã sử dụng 5 request
-	mr.Set("test:user1:hour", "5")
+	if err := mr.Set("test:user1:hour", "5"); err != nil {
+		t.Errorf("failed to set rate limit: %v", err)
+	}
 	mr.SetTTL("test:user1:hour", time.Hour)
 
 	// Kiểm tra quota

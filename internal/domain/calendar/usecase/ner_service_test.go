@@ -87,7 +87,7 @@ func TestNERService_ExtractEntities(t *testing.T) {
 
 				// Return mock response
 				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
-					t.Fatal(err)
+					t.Errorf("failed to encode response: %v", err)
 				}
 			}))
 			defer server.Close()
@@ -215,7 +215,9 @@ func TestNERService_ExtractDateTime(t *testing.T) {
 
 				// Return mock response
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(tt.mockResponse)
+				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
+					t.Errorf("failed to encode response: %v", err)
+				}
 			}))
 			defer server.Close()
 
@@ -385,7 +387,9 @@ func TestNERService_ExtractLocation(t *testing.T) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				json.NewEncoder(w).Encode(tt.mockResponse)
+				if err := json.NewEncoder(w).Encode(tt.mockResponse); err != nil {
+					t.Errorf("failed to encode response: %v", err)
+				}
 			}))
 			defer server.Close()
 

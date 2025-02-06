@@ -167,11 +167,6 @@ func (cc *conflictCheckerImpl) findAlternativeSlots(ctx context.Context, event *
 	return alternatives
 }
 
-// isTimeOverlap checks if two time ranges overlap
-func (cc *conflictCheckerImpl) isTimeOverlap(start1, end1, start2, end2 time.Time) bool {
-	return start1.Before(end2) && end1.After(start2)
-}
-
 func (cc *conflictCheckerImpl) FindAvailableSlots(ctx context.Context, timeRange TimeRange, existingEvents []Event) ([]TimeSlot, error) {
 	var availableSlots []TimeSlot
 	current := timeRange.StartTime
@@ -220,33 +215,6 @@ func (cc *conflictCheckerImpl) GetBusyPeriods(ctx context.Context, timeRange Tim
 	}
 
 	return busyPeriods, nil
-}
-
-func (cc *conflictCheckerImpl) timeSlotOverlaps(slot1, slot2 TimeSlot) bool {
-	return !(slot1.End.Before(slot2.Start) || slot1.Start.After(slot2.End))
-}
-
-func (cc *conflictCheckerImpl) mergeBusyPeriods(periods []TimeSlot) []TimeSlot {
-	if len(periods) <= 1 {
-		return periods
-	}
-
-	var merged []TimeSlot
-	current := periods[0]
-
-	for i := 1; i < len(periods); i++ {
-		if current.End.After(periods[i].Start) || current.End.Equal(periods[i].Start) {
-			if periods[i].End.After(current.End) {
-				current.End = periods[i].End
-			}
-		} else {
-			merged = append(merged, current)
-			current = periods[i]
-		}
-	}
-	merged = append(merged, current)
-
-	return merged
 }
 
 func (cc *conflictCheckerImpl) expandRecurringEvent(event *CalendarEvent, timeRange TimeRange) []TimeSlot {
