@@ -32,18 +32,9 @@ USER appuser
 
 # Set default configuration
 ENV GRPC_PORT=50051 \
-    METRICS_PORT=8000 \
     LOG_LEVEL=INFO \
-    DEVICE=cpu \
-    OTEL_OTLP_ENDPOINT=otel-collector:4317 \
-    OTEL_RESOURCE_ATTRIBUTES=service.name=ner-service \
-    OTEL_SERVICE_NAME=ner-service \
     REDIS_POOL_SIZE=10 \
     RATE_LIMIT=100 \
-    CACHE_TTL=3600 \
-    LOCAL_CACHE_SIZE=1000 \
-    CACHE_VERSION=v1.0 \
-    ELASTICSEARCH_HOST=elasticsearch:9200 \
     BATCH_SIZE=16
 
 # Health check

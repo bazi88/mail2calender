@@ -34,7 +34,6 @@ Mail2Calendar is a service designed to automatically extract calendar events fro
 
 ### Calendar APIs
 - Google Calendar
-- Microsoft Exchange/Office 365
 - Other calendar service providers
 
 ### NER Service

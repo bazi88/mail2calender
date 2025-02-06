@@ -10,50 +10,50 @@
 
 ## Phát Triển Đang Diễn Ra
 1. NER Service
-   - Huấn luyện mô hình tiếng Việt
-   - Tối ưu hóa performance
-   - API documentation
+   - Tối ưu hóa mô hình tiếng Việt
+   - Cải thiện batch processing
+   - Monitoring và metrics
 
 2. Calendar Integration
-   - Microsoft Calendar API
+   - Calendar sync implementation
    - Đồng bộ hai chiều
-   - Xử lý conflict
+   - Xử lý conflict và retry logic
 
-3. Email Processing
-   - Xử lý attachments
-   - Cải thiện parsing
-   - Filter rules
+3. Infrastructure
+   - Redis cache optimization
+   - MinIO storage configuration
+   - Monitoring stack deployment
 
 ## Thay Đổi Gần Đây
-1. Backend
-   - Nâng cấp Go 1.21
-   - Thêm rate limiting
-   - Cải thiện logging
+1. NER Service
+   - Redis rate limiting implementation
+   - gRPC health checks
+   - Batch processing setup
 
 2. Infrastructure
-   - Docker optimization
-   - Monitoring setup
-   - Database indexes
+   - Docker compose optimization
+   - Redis memory limits
+   - Health check configurations
 
-3. Testing
-   - Thêm integration tests
-   - Performance benchmarks
-   - CI/CD improvements
+3. Email Processing
+   - MinIO attachment storage
+   - Improved email parsing
+   - Basic filtering implementation
 
 ## Các Bước Tiếp Theo
 1. Immediate Tasks
-   - Fix NER accuracy
-   - Complete attachment handling
-   - Add more test coverage
+   - Optimize NER batch processing
+   - Complete Google Calendar integration
+   - Deploy monitoring stack
 
 2. This Week
-   - Deploy monitoring
-   - Update documentation
-   - Security review
+   - Fine-tune Vietnamese model
+   - Implement retry mechanisms
+   - Enhance error handling
 
 3. Next Sprint
-   - Microsoft integration
-   - Analytics dashboard
+   - Advanced email filtering
+   - Calendar sync improvements
    - Performance optimization
 
 ## Review & Metrics
@@ -70,4 +70,4 @@
 3. Development Velocity
    - Sprint completion
    - Bug resolution
-   - Feature delivery 
+   - Feature delivery
