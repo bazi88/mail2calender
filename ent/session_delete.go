@@ -4,8 +4,8 @@ package ent
 
 import (
 	"context"
-	"mono-golang/ent/predicate"
-	"mono-golang/ent/session"
+	"mail2calendar/ent/predicate"
+	"mail2calendar/ent/session"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

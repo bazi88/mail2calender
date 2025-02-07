@@ -4,11 +4,11 @@ package enttest
 
 import (
 	"context"
-	"mono-golang/ent/gen"
+	"mail2calendar/ent/gen"
 	// required by schema hooks.
-	_ "mono-golang/ent/gen/runtime"
+	_ "mail2calendar/ent/gen/runtime"
 
-	"mono-golang/ent/gen/migrate"
+	"mail2calendar/ent/gen/migrate"
 
 	"entgo.io/ent/dialect/sql/schema"
 )

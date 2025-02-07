@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	calendarPb "mono-golang/internal/domain/calendar/proto"
-	"mono-golang/internal/domain/ner"
-	nerClient "mono-golang/internal/grpc/client"
+	calendarPb "mail2calendar/internal/domain/calendar/proto"
+	"mail2calendar/internal/domain/ner"
+	nerClient "mail2calendar/internal/grpc/client"
 )
 
 type calendarUseCase struct {

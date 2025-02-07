@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 
@@ -10,10 +11,10 @@ import (
 )
 
 type EmailAuthHandler struct {
-	authService *email_auth.EmailAuthService
+	authService email_auth.EmailAuthService
 }
 
-func NewEmailAuthHandler(authService *email_auth.EmailAuthService) *EmailAuthHandler {
+func NewEmailAuthHandler(authService email_auth.EmailAuthService) *EmailAuthHandler {
 	return &EmailAuthHandler{authService: authService}
 }
 
@@ -91,7 +92,11 @@ func (h *EmailAuthHandler) showAuthPage(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *EmailAuthHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
-	authURL := h.authService.GetAuthURL()
+	authURL, err := h.authService.GetAuthURL(r.Context(), email_auth.Gmail)
+	if err != nil {
+		http.Error(w, "Failed to get auth URL", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
@@ -102,13 +107,26 @@ func (h *EmailAuthHandler) handleCallback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// In a real application, you would get the userID from the session
-	userID := "default-user"
-
-	if err := h.authService.HandleCallback(r.Context(), code, userID); err != nil {
+	token, err := h.authService.ExchangeCode(r.Context(), email_auth.Gmail, code)
+	if err != nil {
 		http.Error(w, "Failed to complete authentication", http.StatusInternalServerError)
 		return
 	}
+
+	// Store token in session or cookie
+	tokenJSON, err := json.Marshal(token)
+	if err != nil {
+		http.Error(w, "Failed to process token", http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "email_token",
+		Value:    string(tokenJSON),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
 
 	html := `
 	<!DOCTYPE html>

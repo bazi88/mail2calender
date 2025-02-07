@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"mono-golang/internal/utility/csrf"
+	"mail2calendar/internal/utility/csrf"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/alexedwards/argon2id"
@@ -27,10 +27,10 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 
-	"mono-golang/database"
-	"mono-golang/ent/gen"
-	"mono-golang/internal/middleware"
-	"mono-golang/third_party/postgresstore"
+	"mail2calendar/database"
+	"mail2calendar/ent/gen"
+	"mail2calendar/internal/middleware"
+	"mail2calendar/third_party/postgresstore"
 )
 
 const (
@@ -40,7 +40,8 @@ const (
 )
 
 var (
-	migrator *database.Migrate
+	migrator             *database.Migrate
+	ErrEmailNotAvailable = errors.New("email is not available")
 )
 
 func TestMain(m *testing.M) {
@@ -97,7 +98,7 @@ func TestMain(m *testing.M) {
 	// migration for each test handler instead.
 	migrator.Up()
 
-	// Seed with super admin suer
+	// Seed with super admin user
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
 	if err != nil {
 		log.Fatalln(err)
@@ -110,8 +111,6 @@ func TestMain(m *testing.M) {
 		log.Fatalln(err)
 	}
 
-	// We can access database with m.hostAndPort or m.databaseUrl
-	// port changes everytime a new docker instance is run
 	code := m.Run()
 
 	// You can't defer this because os.Exit doesn't care for defer
@@ -193,9 +192,16 @@ func TestHandler_RegisterIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
-	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
+	session := newSession(migrator.DB, 24*time.Hour)
+	repo := NewRepo(migrator.DB, session)
+
+	router := chi.NewRouter()
+	router.Use(middleware.LoadAndSave(session))
+	RegisterHTTPEndPoints(router, session, repo)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -208,11 +214,6 @@ func TestHandler_RegisterIntegration(t *testing.T) {
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/register", &buf)
 			ww := httptest.NewRecorder()
-
-			router := chi.NewRouter()
-			router.Use(middleware.LoadAndSave(session))
-
-			RegisterHTTPEndPoints(router, session, repo)
 
 			router.ServeHTTP(ww, rr)
 
@@ -232,6 +233,14 @@ func TestHandler_RegisterIntegration(t *testing.T) {
 				assert.Nil(t, err)
 
 				assert.Equal(t, tt.want.error.Error(), errStruct.Message)
+			}
+
+			if tt.args.Email != "" {
+				_, err = migrator.DB.ExecContext(context.Background(), `
+					INSERT INTO users (email, password) VALUES ($1, $2)
+					ON CONFLICT (email) DO NOTHING 
+				`, tt.args.Email, "password")
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -293,18 +302,21 @@ func TestHandler_LoginIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -364,18 +376,21 @@ func TestHandler_ProtectedIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -384,7 +399,7 @@ func TestHandler_ProtectedIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -400,7 +415,7 @@ func TestHandler_ProtectedIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted", nil)
 			ww = httptest.NewRecorder()
@@ -452,18 +467,21 @@ func TestHandler_MeIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -472,7 +490,7 @@ func TestHandler_MeIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -488,7 +506,7 @@ func TestHandler_MeIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted/me", nil)
 			ww = httptest.NewRecorder()
@@ -506,7 +524,7 @@ func TestHandler_MeIntegration(t *testing.T) {
 			assert.Equal(t, tt.want.status, ww.Code)
 
 			b, err := io.ReadAll(ww.Body)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			if len(b) > 0 {
 				type userID struct {
@@ -514,7 +532,7 @@ func TestHandler_MeIntegration(t *testing.T) {
 				}
 				var responseUserID userID
 				err = json.Unmarshal(b, &responseUserID)
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 
 				// There already is a super admin account created in the seed.
 				// So this user ID is the next one which is 2
@@ -556,18 +574,21 @@ func TestHandler_LogoutIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -576,7 +597,7 @@ func TestHandler_LogoutIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -591,7 +612,7 @@ func TestHandler_LogoutIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted", nil)
 			ww = httptest.NewRecorder()
@@ -616,7 +637,7 @@ func TestHandler_LogoutIntegration(t *testing.T) {
 			router.ServeHTTP(ww, rr)
 
 			token, err = extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, token, "")
 		})
 	}
@@ -654,19 +675,22 @@ func TestHandler_Force_LogoutIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Create normal user
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -675,7 +699,7 @@ func TestHandler_Force_LogoutIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -690,7 +714,7 @@ func TestHandler_Force_LogoutIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted", nil)
 			ww = httptest.NewRecorder()
@@ -710,7 +734,7 @@ func TestHandler_Force_LogoutIntegration(t *testing.T) {
 				Password: "highEntropyPassword",
 			}
 			err = json.NewEncoder(&buf).Encode(admin)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww = httptest.NewRecorder()
@@ -719,7 +743,7 @@ func TestHandler_Force_LogoutIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			adminToken, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			// ID 2 is our normal user to be forced-log out
 			rr = httptest.NewRequest(http.MethodPost, "/api/v1/restricted/logout/2", nil)
@@ -784,18 +808,21 @@ func TestHandler_Csrf_Valid_TokenIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 100*time.Millisecond) // short expiry to test token expiry means test complete faster.
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -804,7 +831,7 @@ func TestHandler_Csrf_Valid_TokenIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -819,7 +846,7 @@ func TestHandler_Csrf_Valid_TokenIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted/csrf", nil)
 			ww = httptest.NewRecorder()
@@ -834,11 +861,11 @@ func TestHandler_Csrf_Valid_TokenIntegration(t *testing.T) {
 			assert.Equal(t, ww.Code, http.StatusOK)
 
 			b, err := io.ReadAll(ww.Body)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			var resp RespondCsrf
 			err = json.Unmarshal(b, &resp)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			assert.NotNil(t, resp.CsrfToken)
 
@@ -893,18 +920,21 @@ func TestHandler_Csrf_Valid_And_Delete_TokenIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 10*time.Minute)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("highEntropyPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -913,7 +943,7 @@ func TestHandler_Csrf_Valid_And_Delete_TokenIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -928,7 +958,7 @@ func TestHandler_Csrf_Valid_And_Delete_TokenIntegration(t *testing.T) {
 
 			assert.NotNil(t, ww.Header().Get("Set-Cookie"))
 			token, err := extractToken(ww.Header().Get("Set-Cookie"))
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr = httptest.NewRequest(http.MethodGet, "/api/v1/restricted/csrf", nil)
 			ww = httptest.NewRecorder()
@@ -943,16 +973,16 @@ func TestHandler_Csrf_Valid_And_Delete_TokenIntegration(t *testing.T) {
 			assert.Equal(t, ww.Code, http.StatusOK)
 
 			b, err := io.ReadAll(ww.Body)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			var resp RespondCsrf
 			err = json.Unmarshal(b, &resp)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			assert.NotNil(t, resp.CsrfToken)
 
 			err = csrf.ValidAndDeleteToken(context.Background(), migrator.DB, resp.CsrfToken)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			// at this point, the csrf token would have been deleted
 			err = csrf.ValidAndDeleteToken(context.Background(), migrator.DB, resp.CsrfToken)
@@ -1006,18 +1036,21 @@ func TestHandler_LoginWithInvalidPasswordIntegration(t *testing.T) {
 		},
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	session := newSession(migrator.DB, 1*time.Hour)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("correctPassword", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "email@example.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "email@example.com", hashedPassword)
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1026,7 +1059,7 @@ func TestHandler_LoginWithInvalidPasswordIntegration(t *testing.T) {
 			if tt.args.LoginRequest != nil {
 				err = json.NewEncoder(&buf).Encode(tt.args.LoginRequest)
 			}
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", &buf)
 			ww := httptest.NewRecorder()
@@ -1041,13 +1074,13 @@ func TestHandler_LoginWithInvalidPasswordIntegration(t *testing.T) {
 
 			if tt.want.error != nil {
 				b, err := io.ReadAll(ww.Body)
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 
 				errStruct := struct {
 					Message string `json:"message"`
 				}{}
 				err = json.Unmarshal(b, &errStruct)
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, tt.want.error.Error(), errStruct.Message)
 			}
 		})
@@ -1059,19 +1092,22 @@ func TestHandler_SessionExpirationIntegration(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	client := dbClient()
+	drv := entsql.OpenDB(DBDriver, migrator.DB)
+	client := gen.NewClient(gen.Driver(drv))
+	defer client.Close()
+
 	// Set a very short session duration for testing
 	session := newSession(migrator.DB, 1*time.Second)
-	repo := NewRepo(client, migrator.DB, session)
+	repo := NewRepo(migrator.DB, session)
 
 	hashedPassword, err := argon2id.CreateHash("testPassword123456", argon2id.DefaultParams)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	_, err = repo.db.ExecContext(context.Background(), `
+	_, err = migrator.DB.ExecContext(context.Background(), `
 		INSERT INTO users (email, password) VALUES ($1, $2)
 		ON CONFLICT (email) DO NOTHING 
-		`, "session@test.com", hashedPassword)
-	assert.Nil(t, err)
+	`, "session@test.com", hashedPassword)
+	assert.NoError(t, err)
 
 	// First login to get session token
 	loginReq := &LoginRequest{
@@ -1080,7 +1116,7 @@ func TestHandler_SessionExpirationIntegration(t *testing.T) {
 	}
 	buf := new(bytes.Buffer)
 	err = json.NewEncoder(buf).Encode(loginReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	rr := httptest.NewRequest(http.MethodPost, "/api/v1/login", buf)
 	ww := httptest.NewRecorder()
@@ -1092,7 +1128,7 @@ func TestHandler_SessionExpirationIntegration(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, ww.Code)
 	token, err := extractToken(ww.Header().Get("Set-Cookie"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Wait for session to expire
 	time.Sleep(2 * time.Second)

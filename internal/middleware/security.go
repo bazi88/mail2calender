@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"mono-golang/internal/pkg/security"
+	"mail2calendar/internal/pkg/security"
 
 	"github.com/gin-gonic/gin"
 )

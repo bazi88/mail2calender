@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"mono-golang/internal/utility/message"
+	"mail2calendar/internal/utility/message"
 )
 
 type Standard struct {

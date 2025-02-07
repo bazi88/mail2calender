@@ -7,12 +7,13 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"go.nhat.io/otelsql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 
-	"mono-golang/config"
-	_ "mono-golang/ent/gen/runtime"
-	"mono-golang/internal/utility/database"
+	"mail2calendar/config"
+	_ "mail2calendar/ent/gen/runtime"
+	"mail2calendar/internal/utility/database"
 )
 
 func NewSqlx(cfg config.Database) *sqlx.DB {

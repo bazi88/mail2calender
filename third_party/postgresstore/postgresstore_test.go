@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"mono-golang/internal/middleware"
+	"mail2calendar/internal/middleware"
 	"os"
 	"testing"
 	"time"

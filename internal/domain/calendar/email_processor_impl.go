@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
+
+	ical "github.com/arran4/golang-ical"
 )
 
 type EmailAttachment struct {
@@ -32,12 +35,12 @@ func NewEmailProcessor(ap AttachmentProcessor) EmailProcessor {
 	}
 }
 
-func (ep *emailProcessorImpl) handleCalendarInvite(att EmailAttachment) (*Event, error) {
+func (ep *emailProcessorImpl) HandleCalendarInvite(att EmailAttachment) (*Event, error) {
 	if att.ContentType != "text/calendar" {
 		return nil, nil
 	}
 
-	cal, err := ical.ParseCalendar(string(att.Data))
+	cal, err := ical.ParseCalendar(strings.NewReader(string(att.Data)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ICS file: %w", err)
 	}
@@ -49,7 +52,7 @@ func (ep *emailProcessorImpl) handleCalendarInvite(att EmailAttachment) (*Event,
 
 		attendees := make([]string, 0)
 		for _, attendee := range event.Attendees() {
-			attendees = append(attendees, attendee.Email)
+			attendees = append(attendees, attendee.Email())
 		}
 
 		return &Event{
@@ -90,15 +93,42 @@ func (ap *AttachmentProcessor) deleteOldFiles(ctx context.Context) error {
 	retentionPeriod := time.Now().AddDate(0, 0, -30)
 
 	// Get list of files older than retention period
-	// Note: This would require implementing a method to list files with their metadata
-	// and track file creation time, possibly in a database
+	files, err := ap.storage.ListFiles(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list files: %w", err)
+	}
 
-	// For each old file
-	if err := ap.storage.Delete(ctx, fileID); err != nil {
-		// Log error but continue with other files
-		log.Printf("Failed to delete old file %s: %v", fileID, err)
-		continue
+	for _, file := range files {
+		// Skip files newer than retention period
+		if file.CreatedAt.After(retentionPeriod) {
+			continue
+		}
+
+		if err := ap.storage.Delete(ctx, file.ID); err != nil {
+			// Log error but continue with other files
+			log.Printf("Failed to delete old file %s: %v", file.ID, err)
+			continue
+		}
 	}
 
 	return nil
+}
+
+// Storage interface defines methods for file storage operations
+type Storage interface {
+	Save(ctx context.Context, data []byte) (string, error)
+	Get(ctx context.Context, id string) ([]byte, error)
+	Delete(ctx context.Context, id string) error
+	ListFiles(ctx context.Context) ([]FileInfo, error)
+}
+
+// FileInfo represents metadata about a stored file
+type FileInfo struct {
+	ID        string
+	CreatedAt time.Time
+}
+
+// EmailProcessor interface defines methods for processing email attachments
+type EmailProcessor interface {
+	HandleCalendarInvite(att EmailAttachment) (*Event, error)
 }

@@ -4,7 +4,7 @@ package gen
 
 import (
 	"fmt"
-	"mono-golang/ent/gen/session"
+	"mail2calendar/ent/gen/session"
 	"strings"
 	"time"
 

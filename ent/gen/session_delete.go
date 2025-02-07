@@ -4,8 +4,8 @@ package gen
 
 import (
 	"context"
-	"mono-golang/ent/gen/predicate"
-	"mono-golang/ent/gen/session"
+	"mail2calendar/ent/gen/predicate"
+	"mail2calendar/ent/gen/session"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

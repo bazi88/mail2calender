@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"mono-golang/internal/domain/calendar/proto"
+	"mail2calendar/internal/domain/calendar/proto"
 )
 
 type CalendarService interface {

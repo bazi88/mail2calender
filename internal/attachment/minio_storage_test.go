@@ -33,6 +33,11 @@ func (m *mockMinioClient) RemoveObject(ctx context.Context, bucketName, objectNa
 	return args.Error(0)
 }
 
+func (m *mockMinioClient) ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo {
+	args := m.Called(ctx, bucketName, opts)
+	return args.Get(0).(<-chan minio.ObjectInfo)
+}
+
 func TestMinioStorage_Save(t *testing.T) {
 	tests := []struct {
 		name        string

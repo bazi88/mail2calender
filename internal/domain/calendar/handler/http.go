@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"mono-golang/internal/domain/calendar/proto"
-	"mono-golang/internal/domain/calendar/service"
+	"mail2calendar/internal/domain/calendar/proto"
+	"mail2calendar/internal/domain/calendar/service"
 )
 
 type HttpCalendarHandler struct {

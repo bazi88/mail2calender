@@ -3,22 +3,14 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
-	"log/slog"
-	"math"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"reflect"
-	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
-	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/gmhafiz/scs/v2"
@@ -27,27 +19,15 @@ import (
 	"github.com/go-playground/validator/v10"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
-	"github.com/jwalton/gchalk"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/extra/redisotel/v9"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
-	"go.nhat.io/otelsql"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"golang.org/x/mod/modfile"
 
-	"mono-golang/config"
-	"mono-golang/database"
-	"mono-golang/logger"
-	"mono-golang/third_party/otlp"
-
-	//_ "mono-golang/docs"
-	"mono-golang/ent/gen"
-	"mono-golang/internal/middleware"
-	db "mono-golang/third_party/database"
-	"mono-golang/third_party/postgresstore"
-	redisLib "mono-golang/third_party/redis"
-	"mono-golang/third_party/validate"
+	"mail2calendar/config"
+	"mail2calendar/ent/gen"
+	"mail2calendar/internal/middleware"
+	db "mail2calendar/third_party/database"
+	"mail2calendar/third_party/postgresstore"
+	"mail2calendar/third_party/validate"
 )
 
 type Server struct {
@@ -58,13 +38,8 @@ type Server struct {
 	sqlx *sqlx.DB
 	ent  *gen.Client
 
-	cache   *redis.Client
-	cluster *redis.ClusterClient
-
 	session       *scs.SessionManager
 	sessionCloser *postgresstore.PostgresStore
-
-	otlp *middleware.Config
 
 	validator *validator.Validate
 	cors      *cors.Cors
@@ -103,23 +78,13 @@ func defaultServer() *Server {
 }
 
 func (s *Server) Init() {
-	s.initLog()
 	s.setCors()
-	s.newOpenTelemetry()
-	s.newRedis()
 	s.NewDatabase()
 	s.newValidator()
 	s.newAuthentication()
 	s.newRouter()
 	s.setGlobalMiddleware()
 	s.InitDomains()
-}
-
-func (s *Server) initLog() {
-	slog.SetDefault(slog.New(logger.NewTraceHandler(
-		os.Stdout,
-		&slog.HandlerOptions{},
-	)))
 }
 
 func (s *Server) setCors() {
@@ -137,44 +102,6 @@ func (s *Server) setCors() {
 			AllowedHeaders:   []string{"*"},
 			AllowCredentials: true,
 		})
-}
-
-func (s *Server) newOpenTelemetry() {
-	ctx := context.Background()
-
-	otlpConfig := s.cfg.OpenTelemetry
-
-	if !otlpConfig.Enable {
-		log.Println("not enabling otlp")
-		return
-	}
-
-	log.Println("connecting to otlp...")
-
-	shutdown := otlp.SetupOTLPExporter(ctx, s.cfg.OpenTelemetry)
-
-	s.otlp = &middleware.Config{
-		Cancel: shutdown,
-	}
-}
-
-func (s *Server) newRedis() {
-	if !s.cfg.Cache.Enable {
-		return
-	}
-
-	if len(s.cfg.Cache.Hosts) > 0 {
-		s.cluster = redisLib.NewCluster(s.cfg.Cache)
-	} else {
-		s.cache = redisLib.New(s.cfg.Cache)
-
-		if err := redisotel.InstrumentTracing(s.cache); err != nil {
-			panic(err)
-		}
-		if err := redisotel.InstrumentMetrics(s.cache); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func (s *Server) NewDatabase() {
@@ -232,50 +159,28 @@ func (s *Server) setGlobalMiddleware() {
 		_, _ = w.Write([]byte(`{"message": "endpoint not found"}`))
 	})
 
-	// Apply security headers first
-	s.router.Use(middleware.SecurityHeaders)
-
-	// Then apply other middleware
 	s.router.Use(s.cors.Handler)
-	s.router.Use(middleware.Otlp(s.cfg.OpenTelemetry.Enable))
 	s.router.Use(middleware.Json)
 	s.router.Use(middleware.LoadAndSave(s.session))
-	s.router.Use(middleware.Audit)
 	if s.cfg.Api.RequestLog {
 		s.router.Use(chiMiddleware.Logger)
 	}
 	s.router.Use(middleware.Recovery)
 }
 
-func (s *Server) Migrate() {
-	log.Println("migrating...")
-
-	var databaseUrl string
-	switch s.cfg.Database.Driver {
-	case "postgres":
-		databaseUrl = fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=%s",
-			s.cfg.Database.Driver,
-			s.cfg.Database.User,
-			s.cfg.Database.Pass,
-			s.cfg.Database.Host,
-			s.cfg.Database.Port,
-			s.cfg.Database.Name,
-			s.cfg.Database.SslMode,
-		)
-	case "mysql":
-		databaseUrl = fmt.Sprintf("%s:%s@(%s:%d)/%s?parseTime=true",
-			s.cfg.Database.User,
-			s.cfg.Database.Pass,
-			s.cfg.Database.Host,
-			s.cfg.Database.Port,
-			s.cfg.Database.Name,
-		)
+func (s *Server) newEnt(dsn string) {
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		log.Println(err)
 	}
+	drv := entsql.OpenDB(dialect.Postgres, db)
+	client := gen.NewClient(gen.Driver(drv))
 
-	migrator := database.Migrator(s.db, database.WithDSN(databaseUrl))
-	migrator.Up()
+	s.ent = client
+}
 
-	log.Println("done migration.")
+func (s *Server) Config() *config.Config {
+	return s.cfg
 }
 
 func (s *Server) Run() {
@@ -285,214 +190,33 @@ func (s *Server) Run() {
 		ReadHeaderTimeout: s.cfg.Api.ReadHeaderTimeout,
 	}
 
-	fmt.Println(`            .,*/(#####(/*,.                               .,*((###(/*.
-        .*(%%%%%%%%%%%%%%#/.                           .*#%%%%####%%%%#/.
-      ./#%%%%#(/,,...,,***.           .......          *#%%%#*.   ,(%%%#/.
-     .(#%%%#/.                    .*(#%%%%%%%##/,.     ,(%%%#*    ,(%%%#*.
-    .*#%%%#/.    ..........     .*#%%%%#(/((#%%%%(,     ,/#%%%#(/#%%%#(,
-    ./#%%%(*    ,#%%%%%%%%(*   .*#%%%#*     .*#%%%#,      *(%%%%%%%#(,.
-    ./#%%%#*    ,(((##%%%%(*   ,/%%%%/.      .(%%%#/   .*#%%%#(*/(#%%%#/,
-     ,#%%%#(.        ,#%%%(*   ,/%%%%/.      .(%%%#/  ,/%%%#/.    .*#%%%(,
-      *#%%%%(*.      ,#%%%(*   .*#%%%#*     ./#%%%#,  ,(%%%#*      .(%%%#*
-       ,(#%%%%%##(((##%%%%(*    .*#%%%%#(((##%%%%(,   .*#%%%##(///(#%%%#/.
-         .*/###%%%%%%%###(/,      .,/##%%%%%##(/,.      .*(##%%%%%%##(*,
-              .........                ......                .......`)
 	go func() {
-		start(s)
+		log.Printf("Server is running on %s:%s\n", s.cfg.Api.Host, s.cfg.Api.Port)
+		err := s.httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
 	}()
 
-	_ = gracefulShutdown(context.Background(), s)
-}
-
-func (s *Server) Config() *config.Config {
-	return s.cfg
-}
-
-// PrintAllRegisteredRoutes prints all registered routes from Chi router.
-// definitely can be an extension to the router instead.
-func (s *Server) PrintAllRegisteredRoutes(exceptions ...string) {
-	exceptions = append(exceptions, "/swagger")
-
-	walkFunc := func(method string, path string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-
-		for _, val := range exceptions {
-			if strings.HasPrefix(path, val) {
-				return nil
-			}
-		}
-
-		switch method {
-		case "GET":
-			fmt.Printf("%s", gchalk.Green(fmt.Sprintf("%-8s", method)))
-		case "POST", "PUT", "PATCH":
-			fmt.Printf("%s", gchalk.Yellow(fmt.Sprintf("%-8s", method)))
-		case "DELETE":
-			fmt.Printf("%s", gchalk.Red(fmt.Sprintf("%-8s", method)))
-		default:
-			fmt.Printf("%s", gchalk.White(fmt.Sprintf("%-8s", method)))
-		}
-
-		//fmt.Printf("%-25s %60s\n", path, getHandler(getModName(), handler))
-		fmt.Printf("%s", strPad(path, 25, "-", "RIGHT"))
-		fmt.Printf("%s\n", strPad(getHandler(getModName(), handler), 60, "-", "LEFT"))
-
-		return nil
-	}
-	if err := chi.Walk(s.router, walkFunc); err != nil {
-		fmt.Print(err)
-	}
-
-	if s.cfg.Api.RunSwagger {
-		fmt.Printf("%s", gchalk.Green(fmt.Sprintf("%-8s", "GET")))
-		fmt.Printf("/swagger\n")
-	}
-}
-
-func (s *Server) newEnt(dsn string) {
-	driverName, err := otelsql.Register(dialect.Postgres,
-		otelsql.AllowRoot(),
-		otelsql.TraceQueryWithoutArgs(),
-		otelsql.WithSystem(semconv.DBSystemPostgreSQL),
-	)
-	if err != nil {
-		log.Println(err)
-	}
-	otelDB, err := sql.Open(driverName, dsn)
-	if err != nil {
-		log.Println(err)
-	}
-	drv := entsql.OpenDB(dialect.Postgres, otelDB)
-	client := gen.NewClient(gen.Driver(drv))
-
-	client.Use(func(next ent.Mutator) ent.Mutator {
-		return ent.MutateFunc(func(ctx context.Context, mutation ent.Mutation) (ent.Value, error) {
-			meta, ok := ctx.Value(middleware.KeyAuditID).(middleware.Event)
-			if !ok {
-				return next.Mutate(ctx, mutation)
-			}
-
-			val, err := next.Mutate(ctx, mutation)
-
-			meta.Table = mutation.Type()
-			meta.Action = middleware.Action(mutation.Op().String())
-
-			newValues, _ := json.Marshal(val)
-			meta.NewValues = string(newValues)
-			log.Println(meta)
-
-			return val, err
-		})
-	})
-
-	s.ent = client
-}
-
-// StrPad returns the input string padded on the left, right or both sides using padType to the specified padding length padLength.
-//
-// Example:
-// input := "Codes";
-// StrPad(input, 10, " ", "RIGHT")        // produces "Codes     "
-// StrPad(input, 10, "-=", "LEFT")        // produces "=-=-=Codes"
-// StrPad(input, 10, "_", "BOTH")         // produces "__Codes___"
-// StrPad(input, 6, "___", "RIGHT")       // produces "Codes_"
-// StrPad(input, 3, "*", "RIGHT")         // produces "Codes"
-// taken from // https://gist.github.com/asessa/3aaec43d93044fc42b7c6d5f728cb039
-func strPad(input string, padLength int, padString string, padType string) string {
-	var output string
-
-	inputLength := len(input)
-	padStringLength := len(padString)
-
-	if inputLength >= padLength {
-		return input
-	}
-
-	repeat := math.Ceil(float64(1) + (float64(padLength-padStringLength))/float64(padStringLength))
-
-	switch padType {
-	case "RIGHT":
-		output = input + strings.Repeat(padString, int(repeat))
-		output = output[:padLength]
-	case "LEFT":
-		output = strings.Repeat(padString, int(repeat)) + input
-		output = output[len(output)-padLength:]
-	case "BOTH":
-		length := (float64(padLength - inputLength)) / float64(2)
-		repeat = math.Ceil(length / float64(padStringLength))
-		output = strings.Repeat(padString, int(repeat))[:int(math.Floor(float64(length)))] + input + strings.Repeat(padString, int(repeat))[:int(math.Ceil(float64(length)))]
-	}
-
-	return output
-}
-
-func getHandler(projectName string, handler http.Handler) (funcName string) {
-	// https://github.com/go-chi/chi/issues/424
-	funcName = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-	base := filepath.Base(funcName)
-
-	nameSplit := strings.Split(funcName, "")
-	names := nameSplit[len(projectName):]
-	path := strings.Join(names, "")
-
-	pathSplit := strings.Split(path, "/")
-	path = strings.Join(pathSplit[:len(pathSplit)-1], "/")
-
-	sFull := strings.Split(base, ".")
-	s := sFull[len(sFull)-1:]
-
-	s = strings.Split(s[0], "")
-	if len(s) <= 4 && len(sFull) >= 3 {
-		s = sFull[len(sFull)-3 : len(sFull)-2]
-		return "@" + gchalk.Blue(strings.Join(s, ""))
-	}
-	s = s[:len(s)-3]
-	funcName = strings.Join(s, "")
-
-	return path + "@" + gchalk.Blue(funcName)
-}
-
-// adapted from https://stackoverflow.com/a/63393712/1033134
-func getModName() string {
-	goModBytes, err := os.ReadFile("go.mod")
-	if err != nil {
-		os.Exit(0)
-	}
-	return modfile.ModulePath(goModBytes)
-}
-
-func start(s *Server) {
-	log.Printf("Serving at %s:%s\n", s.cfg.Api.Host, s.cfg.Api.Port)
-	err := s.httpServer.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func gracefulShutdown(ctx context.Context, s *Server) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	<-quit
 
-	log.Println("Shutting down...")
+	log.Println("Shutting down server...")
 
-	ctx, shutdown := context.WithTimeout(ctx, s.Config().Api.GracefulTimeout*time.Second)
-	defer shutdown()
+	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.Api.GracefulTimeout*time.Second)
+	defer cancel()
 
 	err := s.httpServer.Shutdown(ctx)
 	if err != nil {
 		log.Println(err)
 	}
-	s.closeResources(ctx)
 
-	return nil
+	s.closeResources(ctx)
 }
 
 func (s *Server) closeResources(ctx context.Context) {
 	_ = s.sqlx.Close()
 	_ = s.ent.Close()
-	s.cluster.Shutdown(ctx)
-	s.cache.Shutdown(ctx)
 	s.sessionCloser.StopCleanup()
-	defer s.otlp.Cancel()
 }

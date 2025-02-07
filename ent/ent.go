@@ -6,10 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mono-golang/ent/author"
-	"mono-golang/ent/book"
-	"mono-golang/ent/session"
-	"mono-golang/ent/user"
+	"mail2calendar/ent/session"
+	"mail2calendar/ent/user"
 	"reflect"
 	"sync"
 
@@ -76,8 +74,6 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			author.Table:  author.ValidColumn,
-			book.Table:    book.ValidColumn,
 			session.Table: session.ValidColumn,
 			user.Table:    user.ValidColumn,
 		})

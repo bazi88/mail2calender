@@ -5,32 +5,8 @@ package hook
 import (
 	"context"
 	"fmt"
-	"mono-golang/ent/gen"
+	"mail2calendar/ent/gen"
 )
-
-// The AuthorFunc type is an adapter to allow the use of ordinary
-// function as Author mutator.
-type AuthorFunc func(context.Context, *gen.AuthorMutation) (gen.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f AuthorFunc) Mutate(ctx context.Context, m gen.Mutation) (gen.Value, error) {
-	if mv, ok := m.(*gen.AuthorMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *gen.AuthorMutation", m)
-}
-
-// The BookFunc type is an adapter to allow the use of ordinary
-// function as Book mutator.
-type BookFunc func(context.Context, *gen.BookMutation) (gen.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f BookFunc) Mutate(ctx context.Context, m gen.Mutation) (gen.Value, error) {
-	if mv, ok := m.(*gen.BookMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *gen.BookMutation", m)
-}
 
 // The SessionFunc type is an adapter to allow the use of ordinary
 // function as Session mutator.

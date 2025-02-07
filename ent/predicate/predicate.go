@@ -6,12 +6,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Author is the predicate function for author builders.
-type Author func(*sql.Selector)
-
-// Book is the predicate function for book builders.
-type Book func(*sql.Selector)
-
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 

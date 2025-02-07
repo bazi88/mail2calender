@@ -5,9 +5,9 @@ package gen
 import (
 	"context"
 	"fmt"
+	"mail2calendar/ent/gen/predicate"
+	"mail2calendar/ent/gen/session"
 	"math"
-	"mono-golang/ent/gen/predicate"
-	"mono-golang/ent/gen/session"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

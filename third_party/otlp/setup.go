@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"mono-golang/config"
+	"mail2calendar/config"
 )
 
 // SetupOTLPExporter bootstraps the OpenTelemetry pipeline.

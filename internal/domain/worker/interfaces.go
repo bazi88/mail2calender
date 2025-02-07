@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/mail2calender/internal/domain/email_auth"
+	"mail2calendar/internal/domain/email_auth"
 )
 
 // EmailProcessor handles email processing tasks

@@ -1,4 +1,6 @@
+//go:build ignore
+
 package main
 
-//go:generate protoc --proto_path=. --go_out=. --go_opt=module=mono-golang --go-grpc_out=. --go-grpc_opt=module=mono-golang ner-service/protos/ner.proto
-//go:generate protoc --proto_path=. --go_out=. --go_opt=module=mono-golang --go-grpc_out=. --go-grpc_opt=module=mono-golang internal/domain/calendar/proto/calendar.proto
+//go:generate protoc --proto_path=. --go_out=. --go_opt=module=mail2calendar --go-grpc_out=. --go-grpc_opt=module=mail2calendar ner-service/protos/ner.proto
+//go:generate protoc --proto_path=. --go_out=. --go_opt=module=mail2calendar --go-grpc_out=. --go-grpc_opt=module=mail2calendar internal/domain/calendar/proto/calendar.proto

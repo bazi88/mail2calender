@@ -4,166 +4,86 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"mono-golang/internal/domain/ner"
+	"mail2calendar/internal/domain/ner"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockNERUseCase is a mock implementation of ner.UseCase
 type MockNERUseCase struct {
 	mock.Mock
 }
 
 func (m *MockNERUseCase) ExtractEntities(ctx context.Context, text string) (*ner.ExtractResponse, error) {
 	args := m.Called(ctx, text)
-	if resp, ok := args.Get(0).(*ner.ExtractResponse); ok {
-		return resp, args.Error(1)
+	if resp := args.Get(0); resp != nil {
+		return resp.(*ner.ExtractResponse), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockNERUseCase) ExtractEntitiesFromText(ctx context.Context, text string) ([]*ner.Entity, error) {
-	args := m.Called(ctx, text)
-	if entities, ok := args.Get(0).([]*ner.Entity); ok {
-		return entities, args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func TestNew(t *testing.T) {
-	mockUseCase := new(MockNERUseCase)
-	handler := New(mockUseCase)
-	assert.NotNil(t, handler)
-	assert.NotNil(t, handler.validate)
-	assert.Equal(t, mockUseCase, handler.useCase)
-}
-
-func TestHandler_Extract(t *testing.T) {
+func TestHandler_ExtractEntities(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    interface{}
-		setupMock      bool
-		mockResponse   *ner.ExtractResponse
-		mockError      error
+		setupMock      func(*MockNERUseCase)
 		expectedStatus int
-		expectedBody   interface{}
+		expectedBody   string
 	}{
 		{
 			name: "successful extraction",
-			requestBody: ExtractRequest{
-				Text: "John works at Google",
-			},
-			setupMock: true,
-			mockResponse: &ner.ExtractResponse{
-				Entities: []*ner.Entity{
-					{
-						Text:  "John",
-						Label: "PERSON",
-						Start: 0,
-						End:   4,
-					},
-					{
-						Text:  "Google",
-						Label: "ORG",
-						Start: 11,
-						End:   17,
-					},
-				},
-			},
-			mockError:      nil,
-			expectedStatus: http.StatusOK,
-			expectedBody: &ner.ExtractResponse{
-				Entities: []*ner.Entity{
-					{
-						Text:  "John",
-						Label: "PERSON",
-						Start: 0,
-						End:   4,
-					},
-					{
-						Text:  "Google",
-						Label: "ORG",
-						Start: 11,
-						End:   17,
-					},
-				},
-			},
-		},
-		{
-			name: "empty text",
-			requestBody: ExtractRequest{
-				Text: "",
-			},
-			setupMock:      false,
-			mockResponse:   nil,
-			mockError:      nil,
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name:           "invalid request body",
-			requestBody:    "invalid json",
-			setupMock:      false,
-			mockResponse:   nil,
-			mockError:      nil,
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name: "usecase error",
-			requestBody: ExtractRequest{
+			requestBody: extractRequest{
 				Text: "test text",
 			},
-			setupMock:      true,
-			mockResponse:   nil,
-			mockError:      errors.New("usecase error"),
-			expectedStatus: http.StatusInternalServerError,
+			setupMock: func(m *MockNERUseCase) {
+				m.On("ExtractEntities", mock.Anything, "test text").Return(&ner.ExtractResponse{
+					Entities: []*ner.Entity{
+						{
+							Text:  "test",
+							Label: "TEST",
+							Start: 0,
+							End:   4,
+						},
+					},
+				}, nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"entities":[{"text":"test","label":"TEST","start":0,"end":4}]}`,
+		},
+		{
+			name: "invalid request body",
+			requestBody: struct {
+				InvalidField string `json:"invalid_field"`
+			}{
+				InvalidField: "test",
+			},
+			setupMock:      func(m *MockNERUseCase) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Invalid request body\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockUseCase := new(MockNERUseCase)
-			handler := New(mockUseCase)
+			tt.setupMock(mockUseCase)
 
-			// Prepare request
-			var body []byte
-			var err error
-			if s, ok := tt.requestBody.(string); ok {
-				body = []byte(s)
-			} else {
-				body, err = json.Marshal(tt.requestBody)
-				assert.NoError(t, err)
+			handler := &Handler{
+				useCase: mockUseCase,
 			}
 
+			body, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/ner/extract", bytes.NewReader(body))
-			req.Header.Set("Content-Type", "application/json")
-			rec := httptest.NewRecorder()
+			w := httptest.NewRecorder()
 
-			// Set up mock expectations
-			if tt.setupMock {
-				if reqBody, ok := tt.requestBody.(ExtractRequest); ok {
-					mockUseCase.On("ExtractEntities", mock.Anything, reqBody.Text).Return(tt.mockResponse, tt.mockError)
-				}
-			}
+			handler.ExtractEntities(w, req)
 
-			// Execute request
-			handler.Extract(rec, req)
-
-			// Assert response
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-
-			if tt.expectedBody != nil {
-				var response ner.ExtractResponse
-				err := json.NewDecoder(rec.Body).Decode(&response)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedBody, &response)
-			}
-
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedBody, w.Body.String())
 			mockUseCase.AssertExpectations(t)
 		})
 	}

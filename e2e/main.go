@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"time"
 
-	"mono-golang/config"
-	"mono-golang/internal/domain/book"
-	calendarPb "mono-golang/internal/domain/calendar/proto"
+	"mail2calendar/config"
+	calendarPb "mail2calendar/internal/domain/calendar/proto"
 )
 
 // Version is injected using ldflags during build time
@@ -32,9 +30,7 @@ func main() {
 }
 
 func run() {
-	testBook()
 	testCalendar()
-
 	log.Println("all tests have passed.")
 }
 
@@ -173,199 +169,6 @@ func testDeleteEvent() {
 	}
 
 	log.Println("testDeleteEvent passes")
-}
-
-func testBook() {
-	testEmptyBook()
-	id := testAddOneBook()
-	id = testGetOneBook(id)
-	testUpdateBook(id)
-	testDeleteOneBook(id)
-}
-
-func testEmptyBook() {
-	resp, err := http.Get(fmt.Sprintf("%s/api/v1/book", url))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	got, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if status := resp.StatusCode; status != http.StatusOK {
-		log.Printf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected, _ := json.Marshal(make([]*book.Res, 0))
-
-	if !bytes.Equal(expected, got) {
-		log.Printf("handler returned unexpected body: got %v want %v", string(got), expected)
-	}
-
-	log.Println("testEmptyBook passes")
-}
-
-func testAddOneBook() uint64 {
-	want := &book.CreateRequest{
-		Title:         "test01",
-		PublishedDate: "2020-02-02",
-		ImageURL:      "https://example.com/image.png",
-		Description:   "test01",
-	}
-
-	bR, _ := json.Marshal(want)
-
-	resp, err := http.Post(
-		fmt.Sprintf("%s/api/v1/book", url),
-		"Content-Type: application/json",
-		bytes.NewBuffer(bR),
-	)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	gotBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	got := book.Res{}
-	err = json.Unmarshal(gotBody, &got)
-	if err != nil {
-		log.Println(err)
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		log.Printf("error code want %d, got %d", http.StatusCreated, resp.StatusCode)
-	}
-
-	if want.Title != got.Title && want.Description != got.Description && want.
-		ImageURL != got.ImageURL && want.PublishedDate != got.PublishedDate.String() {
-		log.Printf("want %v, got %v\n", want, got)
-	}
-
-	log.Println("testAddOneBook passes")
-	return got.ID
-}
-
-func testGetOneBook(id uint64) uint64 {
-	client := &http.Client{}
-
-	url := fmt.Sprintf("%s/api/v1/book/%d", url, id)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("error code fail, want %d, got %d\n", http.StatusOK, resp.StatusCode)
-	}
-
-	got := book.Res{}
-	err = json.Unmarshal(respBody, &got)
-	if err != nil {
-		log.Println(err)
-	}
-
-	log.Println("testGetBook passes")
-
-	return got.ID
-}
-
-func testUpdateBook(bookID uint64) {
-	newBook := book.CreateRequest{
-		Title:         "updated title",
-		PublishedDate: "2020-07-31T15:04:05.123499999Z",
-		ImageURL:      "https://example.com/image.png",
-		Description:   "test description",
-	}
-
-	client := &http.Client{}
-
-	bR, err := json.Marshal(&newBook)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	url := fmt.Sprintf("%s/api/v1/book/%d", url, bookID)
-
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(bR))
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("error code fail, want %d, got %d\n", http.StatusOK, resp.StatusCode)
-	}
-
-	got := book.Res{}
-	err = json.Unmarshal(respBody, &got)
-	if err != nil {
-		log.Println(err)
-	}
-
-	if got.ID != bookID && got.Title != newBook.Title && got.Description != newBook.Description && got.ImageURL != newBook.ImageURL {
-		if err != nil {
-			log.Fatalf("returned resource does not match. want %v, got %v", respBody, got)
-		}
-	}
-
-	log.Println("testUpdateBook passes")
-}
-
-func testDeleteOneBook(id uint64) {
-	client := &http.Client{}
-
-	req, err := http.NewRequest(
-		http.MethodDelete, fmt.Sprintf("%s/api/v1/book/%d", url, id),
-		nil,
-	)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("error code fail, want %d, got %d\n", http.StatusOK, resp.StatusCode)
-	}
-	log.Println("testDeleteOneBook passes")
 }
 
 func waitForApi(readinessURL string) {

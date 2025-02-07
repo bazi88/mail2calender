@@ -1,9 +1,9 @@
 package health
 
 import (
-	"github.com/go-chi/chi/v5"
+	"mail2calendar/internal/middleware"
 
-	"mono-golang/internal/middleware"
+	"github.com/go-chi/chi/v5"
 )
 
 func RegisterHTTPEndPoints(router *chi.Mux, uc UseCase) *Handler {

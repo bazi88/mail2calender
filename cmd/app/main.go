@@ -33,9 +33,9 @@ import (
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 
-	"mono-golang/internal/config"
-	"mono-golang/internal/domain/health"
-	"mono-golang/internal/infrastructure/logger"
+	"mail2calendar/internal/config"
+	"mail2calendar/internal/domain/health"
+	"mail2calendar/internal/infrastructure/logger"
 )
 
 func main() {

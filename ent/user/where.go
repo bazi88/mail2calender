@@ -3,7 +3,7 @@
 package user
 
 import (
-	"mono-golang/ent/predicate"
+	"mail2calendar/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

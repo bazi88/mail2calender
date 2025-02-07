@@ -1,49 +1,52 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	"mono-golang/internal/domain/ner"
-	"mono-golang/internal/utility/respond"
 	"net/http"
 
-	"github.com/go-playground/validator/v10"
+	"mail2calendar/internal/delivery/http/middleware"
+	"mail2calendar/internal/domain/ner"
+
+	"github.com/go-chi/chi/v5"
 )
 
-type ExtractRequest struct {
-	Text string `json:"text" validate:"required"`
+type NERUseCase interface {
+	ExtractEntities(ctx context.Context, text string) (*ner.ExtractResponse, error)
 }
 
 type Handler struct {
-	useCase  ner.UseCase
-	validate *validator.Validate
+	useCase NERUseCase
 }
 
-// New creates a new NER handler
-func New(useCase ner.UseCase) *Handler {
-	return &Handler{
-		useCase:  useCase,
-		validate: validator.New(),
+func RegisterRoutes(r chi.Router, uc NERUseCase, rateLimiter *middleware.RedisRateLimiter) {
+	handler := &Handler{
+		useCase: uc,
 	}
+
+	r.Route("/api/v1/ner", func(r chi.Router) {
+		r.Use(rateLimiter.Limit)
+		r.Post("/extract", handler.ExtractEntities)
+	})
 }
 
-// Extract handles the entity extraction request
-func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
-	var req ExtractRequest
+type extractRequest struct {
+	Text string `json:"text"`
+}
+
+func (h *Handler) ExtractEntities(w http.ResponseWriter, r *http.Request) {
+	var req extractRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respond.WriteError(w, http.StatusBadRequest, err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.validate.Struct(req); err != nil {
-		respond.WriteError(w, http.StatusBadRequest, err)
-		return
-	}
-
-	response, err := h.useCase.ExtractEntities(r.Context(), req.Text)
+	entities, err := h.useCase.ExtractEntities(r.Context(), req.Text)
 	if err != nil {
-		respond.WriteError(w, http.StatusInternalServerError, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	respond.JSON(w, http.StatusOK, response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entities)
 }

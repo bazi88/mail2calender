@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"mono-golang/config"
-	"mono-golang/database"
-	db "mono-golang/third_party/database"
+	"mail2calendar/config"
+	"mail2calendar/database"
+	db "mail2calendar/third_party/database"
 )
 
 // Version is injected using ldflags during build time

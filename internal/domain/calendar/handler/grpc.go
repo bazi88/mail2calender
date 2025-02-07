@@ -6,12 +6,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	calendarPb "mono-golang/internal/domain/calendar/proto"
-	"mono-golang/internal/domain/calendar/usecase"
+	pb "mail2calendar/internal/domain/calendar/proto"
+	"mail2calendar/internal/domain/calendar/usecase"
 )
 
 type CalendarHandler struct {
-	calendarPb.UnimplementedCalendarServiceServer
+	pb.UnimplementedCalendarServiceServer
 	useCase usecase.CalendarUseCase
 }
 
@@ -21,7 +21,7 @@ func NewCalendarHandler(useCase usecase.CalendarUseCase) *CalendarHandler {
 	}
 }
 
-func (h *CalendarHandler) CreateEvent(ctx context.Context, req *calendarPb.CreateEventRequest) (*calendarPb.CreateEventResponse, error) {
+func (h *CalendarHandler) CreateEvent(ctx context.Context, req *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
 	if req.Event == nil {
 		return nil, status.Error(codes.InvalidArgument, "event cannot be nil")
 	}
@@ -31,12 +31,12 @@ func (h *CalendarHandler) CreateEvent(ctx context.Context, req *calendarPb.Creat
 		return nil, err
 	}
 
-	return &calendarPb.CreateEventResponse{
+	return &pb.CreateEventResponse{
 		Event: event,
 	}, nil
 }
 
-func (h *CalendarHandler) UpdateEvent(ctx context.Context, req *calendarPb.UpdateEventRequest) (*calendarPb.UpdateEventResponse, error) {
+func (h *CalendarHandler) UpdateEvent(ctx context.Context, req *pb.UpdateEventRequest) (*pb.UpdateEventResponse, error) {
 	if req.Event == nil {
 		return nil, status.Error(codes.InvalidArgument, "event cannot be nil")
 	}
@@ -46,12 +46,12 @@ func (h *CalendarHandler) UpdateEvent(ctx context.Context, req *calendarPb.Updat
 		return nil, err
 	}
 
-	return &calendarPb.UpdateEventResponse{
+	return &pb.UpdateEventResponse{
 		Event: event,
 	}, nil
 }
 
-func (h *CalendarHandler) DeleteEvent(ctx context.Context, req *calendarPb.DeleteEventRequest) (*calendarPb.DeleteEventResponse, error) {
+func (h *CalendarHandler) DeleteEvent(ctx context.Context, req *pb.DeleteEventRequest) (*pb.DeleteEventResponse, error) {
 	if req.EventId == "" {
 		return nil, status.Error(codes.InvalidArgument, "event ID cannot be empty")
 	}
@@ -61,12 +61,12 @@ func (h *CalendarHandler) DeleteEvent(ctx context.Context, req *calendarPb.Delet
 		return nil, err
 	}
 
-	return &calendarPb.DeleteEventResponse{
+	return &pb.DeleteEventResponse{
 		Success: true,
 	}, nil
 }
 
-func (h *CalendarHandler) GetEvent(ctx context.Context, req *calendarPb.GetEventRequest) (*calendarPb.GetEventResponse, error) {
+func (h *CalendarHandler) GetEvent(ctx context.Context, req *pb.GetEventRequest) (*pb.GetEventResponse, error) {
 	if req.EventId == "" {
 		return nil, status.Error(codes.InvalidArgument, "event ID cannot be empty")
 	}
@@ -76,12 +76,12 @@ func (h *CalendarHandler) GetEvent(ctx context.Context, req *calendarPb.GetEvent
 		return nil, err
 	}
 
-	return &calendarPb.GetEventResponse{
+	return &pb.GetEventResponse{
 		Event: event,
 	}, nil
 }
 
-func (h *CalendarHandler) ListEvents(ctx context.Context, req *calendarPb.ListEventsRequest) (*calendarPb.ListEventsResponse, error) {
+func (h *CalendarHandler) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user ID cannot be empty")
 	}
@@ -91,7 +91,7 @@ func (h *CalendarHandler) ListEvents(ctx context.Context, req *calendarPb.ListEv
 		return nil, err
 	}
 
-	return &calendarPb.ListEventsResponse{
+	return &pb.ListEventsResponse{
 		Events:        events,
 		NextPageToken: nextPageToken,
 	}, nil

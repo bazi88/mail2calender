@@ -33,6 +33,14 @@ func (e *CalendarError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Type, e.Message)
 }
 
+// Is implements error interface for error comparison
+func (e *CalendarError) Is(target error) bool {
+	if t, ok := target.(*CalendarError); ok {
+		return e.Type == t.Type
+	}
+	return false
+}
+
 // NewError creates a new CalendarError
 func NewError(errType string, message string) *CalendarError {
 	return &CalendarError{
@@ -61,11 +69,6 @@ func (e *CalendarError) WithRetry(duration time.Duration) *CalendarError {
 func (e *CalendarError) WithWrappedError(err error) *CalendarError {
 	e.WrappedErr = err
 	return e
-}
-
-// Is checks if the error is of a specific type
-func (e *CalendarError) Is(errType string) bool {
-	return e.Type == errType
 }
 
 // Common error constructors
@@ -100,49 +103,49 @@ func NewValidationError(message string) *CalendarError {
 // Error utility functions
 func IsInvalidEmail(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(InvalidEmail)
+		return cerr.Type == InvalidEmail
 	}
 	return false
 }
 
 func IsInvalidToken(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(InvalidToken)
+		return cerr.Type == InvalidToken
 	}
 	return false
 }
 
 func IsInvalidTime(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(InvalidTime)
+		return cerr.Type == InvalidTime
 	}
 	return false
 }
 
 func IsConflict(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(ConflictDetected)
+		return cerr.Type == ConflictDetected
 	}
 	return false
 }
 
 func IsServiceUnavailable(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(ServiceUnavailable)
+		return cerr.Type == ServiceUnavailable
 	}
 	return false
 }
 
 func IsParseError(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(ParseError)
+		return cerr.Type == ParseError
 	}
 	return false
 }
 
 func IsValidationError(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(ValidationError)
+		return cerr.Type == ValidationError
 	}
 	return false
 }
@@ -150,7 +153,7 @@ func IsValidationError(err error) bool {
 // ShouldRetry determines if the error is retryable
 func ShouldRetry(err error) bool {
 	if cerr, ok := err.(*CalendarError); ok {
-		return cerr.Is(ServiceUnavailable) || cerr.RetryAfter != nil
+		return cerr.Type == ServiceUnavailable || cerr.RetryAfter != nil
 	}
 	return false
 }

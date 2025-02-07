@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"mono-golang/internal/pkg/security"
+	"mail2calendar/internal/pkg/security"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"

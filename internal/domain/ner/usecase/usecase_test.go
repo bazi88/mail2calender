@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"mono-golang/internal/domain/ner"
+	"mail2calendar/internal/domain/ner"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

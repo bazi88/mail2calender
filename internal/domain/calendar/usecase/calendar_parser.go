@@ -4,31 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"time"
+
+	ical "github.com/arran4/golang-ical"
 )
 
-type CalendarEvent interface {
-	GetSummary() string
-	GetDescription() string
-	GetStartTime() time.Time
-	GetEndTime() time.Time
-	GetLocation() string
+// ICalendarParser defines methods for parsing calendar data
+type ICalendarParser interface {
+	ParseICSAttachment(data []byte) (*CalendarEvent, error)
 }
 
-type ICSEvent struct {
-	Summary     string
-	Description string
-	StartTime   time.Time
-	EndTime     time.Time
-	Location    string
+type calendarParserImpl struct{}
+
+func NewCalendarParser() ICalendarParser {
+	return &calendarParserImpl{}
 }
 
-func (e *ICSEvent) GetSummary() string      { return e.Summary }
-func (e *ICSEvent) GetDescription() string  { return e.Description }
-func (e *ICSEvent) GetStartTime() time.Time { return e.StartTime }
-func (e *ICSEvent) GetEndTime() time.Time   { return e.EndTime }
-func (e *ICSEvent) GetLocation() string     { return e.Location }
-
-func parseICSAttachment(data []byte) (CalendarEvent, error) {
+func (p *calendarParserImpl) ParseICSAttachment(data []byte) (*CalendarEvent, error) {
 	calendar, err := ical.ParseCalendar(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ICS: %w", err)
@@ -36,21 +27,22 @@ func parseICSAttachment(data []byte) (CalendarEvent, error) {
 
 	// Get the first event from the calendar
 	for _, event := range calendar.Events() {
-		icsEvent := &ICSEvent{
-			Summary:     event.GetProperty(ical.ComponentPropertySummary).Value,
-			Description: event.GetProperty(ical.ComponentPropertyDescription).Value,
+		startTime, _ := time.Parse("20060102T150405Z", event.GetProperty(ical.ComponentPropertyDtStart).Value)
+		endTime, _ := time.Parse("20060102T150405Z", event.GetProperty(ical.ComponentPropertyDtEnd).Value)
+
+		attendees := make([]string, 0)
+		for _, attendee := range event.Attendees() {
+			attendees = append(attendees, attendee.Email())
+		}
+
+		return &CalendarEvent{
+			Title:       event.GetProperty(ical.ComponentPropertySummary).Value,
+			StartTime:   startTime,
+			EndTime:     endTime,
 			Location:    event.GetProperty(ical.ComponentPropertyLocation).Value,
-		}
-
-		// Parse start and end times
-		if startProp := event.GetProperty(ical.ComponentPropertyDtStart); startProp != nil {
-			icsEvent.StartTime, _ = time.Parse("20060102T150405Z", startProp.Value)
-		}
-		if endProp := event.GetProperty(ical.ComponentPropertyDtEnd); endProp != nil {
-			icsEvent.EndTime, _ = time.Parse("20060102T150405Z", endProp.Value)
-		}
-
-		return icsEvent, nil
+			Attendees:   attendees,
+			IsRecurring: event.GetProperty(ical.ComponentPropertyRrule) != nil,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("no events found in ICS file")

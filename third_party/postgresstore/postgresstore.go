@@ -28,7 +28,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 
-	"mono-golang/internal/middleware"
+	"mail2calendar/internal/middleware"
 )
 
 // PostgresStore represents the session store.

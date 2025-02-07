@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"mono-golang/internal/domain/calendar/service"
+	"mail2calendar/internal/domain/calendar/service"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"

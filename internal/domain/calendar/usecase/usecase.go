@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 
-	calendarPb "mono-golang/internal/domain/calendar/proto"
+	calendarPb "mail2calendar/internal/domain/calendar/proto"
 )
 
 // CalendarUseCase defines the interface for calendar operations

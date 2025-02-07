@@ -12,7 +12,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"mono-golang/internal/domain/calendar/logger"
+	"mail2calendar/internal/domain/calendar/logger"
 )
 
 // OAuthConfig handles OAuth2 configuration and token management

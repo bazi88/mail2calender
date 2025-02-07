@@ -53,10 +53,13 @@ func TestCalendarError_WithRetry(t *testing.T) {
 	assert.Equal(t, &retryDuration, err.RetryAfter)
 }
 
+// ErrorConstructor is a type for error constructors
+type ErrorConstructor = func(string) *CalendarError
+
 func TestErrorConstructors(t *testing.T) {
 	tests := []struct {
 		name        string
-		constructor func(string) *CalendarError
+		constructor ErrorConstructor
 		errType     string
 	}{
 		{

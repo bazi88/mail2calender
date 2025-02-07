@@ -1,10 +1,10 @@
 package authentication
 
 import (
+	"mail2calendar/internal/middleware"
+
 	"github.com/gmhafiz/scs/v2"
 	"github.com/go-chi/chi/v5"
-
-	"mono-golang/internal/middleware"
 )
 
 func RegisterHTTPEndPoints(router *chi.Mux, session *scs.SessionManager, repo Repo) {

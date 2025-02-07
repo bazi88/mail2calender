@@ -1,9 +1,9 @@
 package main
 
 import (
-	"mono-golang/internal/config"
-	"mono-golang/internal/infrastructure/logger"
-	"mono-golang/internal/server"
+	"mail2calendar/internal/config"
+	"mail2calendar/internal/infrastructure/logger"
+	"mail2calendar/internal/server"
 
 	"github.com/sirupsen/logrus"
 )

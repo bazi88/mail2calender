@@ -8,9 +8,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 
-	"mono-golang/config"
-	_ "mono-golang/ent/gen/runtime"
-	"mono-golang/internal/utility/database"
+	"mail2calendar/config"
+	_ "mail2calendar/ent/gen/runtime"
+	"mail2calendar/internal/utility/database"
 )
 
 func New(cfg *config.Config) *sql.DB {

@@ -8,10 +8,10 @@ import (
 	"github.com/alexedwards/argon2id"
 	"github.com/gmhafiz/scs/v2"
 
-	"mono-golang/internal/middleware"
-	"mono-golang/internal/utility/param"
-	"mono-golang/internal/utility/request"
-	"mono-golang/internal/utility/respond"
+	"mail2calendar/internal/middleware"
+	"mail2calendar/internal/utility/param"
+	"mail2calendar/internal/utility/request"
+	"mail2calendar/internal/utility/respond"
 )
 
 const (

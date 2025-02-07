@@ -18,10 +18,38 @@ func (m *MockVirusScanner) Scan(data []byte) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
+type AttachmentProcessor struct {
+	storage Storage
+	scanner VirusScanner
+}
+
+func NewAttachmentProcessor(storage Storage, scanner VirusScanner) *AttachmentProcessor {
+	return &AttachmentProcessor{
+		storage: storage,
+		scanner: scanner,
+	}
+}
+
+func (p *AttachmentProcessor) ProcessAttachment(ctx context.Context, data []byte, ext string) (string, error) {
+	// Scan for viruses
+	isClean, err := p.scanner.Scan(data)
+	if err != nil {
+		// If scan fails, quarantine the file
+		return "", errors.New("virus scan failed, file quarantined")
+	}
+	if !isClean {
+		return "", errors.New("virus detected, file quarantined")
+	}
+
+	// Save clean file
+	return p.storage.Save(ctx, data, ext)
+}
+
 func TestAttachmentProcessor_QuarantineUnscannedFiles(t *testing.T) {
 	// Setup
+	mockClient := new(mockMinioClient)
 	mockStorage := &S3Storage{
-		client:           &MockMinioClient{},
+		client:           mockClient,
 		bucket:           "test-bucket",
 		quarantineBucket: "quarantine-bucket",
 	}

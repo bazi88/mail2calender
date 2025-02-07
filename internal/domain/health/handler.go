@@ -3,7 +3,7 @@ package health
 import (
 	"net/http"
 
-	"mono-golang/internal/utility/respond"
+	"mail2calendar/internal/utility/respond"
 )
 
 type Handler struct {

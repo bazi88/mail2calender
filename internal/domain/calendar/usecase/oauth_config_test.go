@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"mono-golang/internal/domain/calendar/logger"
+	"mail2calendar/internal/domain/calendar/logger"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"

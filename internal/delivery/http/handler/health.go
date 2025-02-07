@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"mono-golang/internal/infrastructure/logger"
+	"mail2calendar/internal/infrastructure/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"

@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mono-golang/ent/predicate"
-	"mono-golang/ent/user"
+	"mail2calendar/ent/predicate"
+	"mail2calendar/ent/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

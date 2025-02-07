@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"mail2calendar/internal/config"
+	"mail2calendar/internal/domain/ner"
+	pb "mail2calendar/ner-service/protos/ner"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"mono-golang/internal/config"
-	"mono-golang/internal/domain/ner"
-	pb "mono-golang/ner-service/protos/ner"
 )
 
 // NER defines the interface for NER client operations

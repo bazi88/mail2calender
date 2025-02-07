@@ -5,7 +5,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"mono-golang/config"
+	"mail2calendar/config"
 )
 
 func New(cfg config.Cache) *redis.Client {

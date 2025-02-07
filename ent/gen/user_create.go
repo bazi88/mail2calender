@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mono-golang/ent/gen/user"
+	"mail2calendar/ent/gen/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
