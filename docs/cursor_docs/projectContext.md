@@ -41,15 +41,14 @@
 1. Email Services
    - SMTP/IMAP protocols
    - Gmail API
-   - IMAP/SMTP Services
-   - Email Processing Pipeline
-   - Attachment Handling
+   - Microsoft Graph API
 
 2. Calendar Services
    - Google Calendar API
+   - Microsoft Calendar API
    - CalDAV protocol
 
 3. NER Service
    - SpaCy models
    - Custom trained models
-   - API endpoints
+   - API endpoints 

@@ -64,7 +64,7 @@ test_api "/api/v1/ner/extract" "POST" '{"invalid_field":"test"}' 400
 
 # Test 4: Extract entities với text dài
 echo "Test 4: Extract entities với text dài"
-test_api "/api/v1/ner/extract" "POST" '{"text":"Google is a technology company headquartered in Mountain View, California. Apple has its headquarters in Cupertino. Amazon has its headquarters in Seattle."}' 200
+test_api "/api/v1/ner/extract" "POST" '{"text":"Google is a technology company headquartered in Mountain View, California. Microsoft is located in Redmond, Washington. Amazon has its headquarters in Seattle."}' 200
 
 # Test 5: Rate limit test
 echo "Test 5: Rate limit test (gửi nhiều request liên tiếp)"

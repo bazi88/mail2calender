@@ -8,6 +8,7 @@ import (
 	"mime"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -47,56 +48,79 @@ func (s *MinioStorage) validateFile(data []byte, ext string) error {
 	if len(data) > maxFileSize {
 		return fmt.Errorf("file size exceeds maximum allowed size of %d bytes", maxFileSize)
 	}
-	if !allowedExtensions[strings.ToLower(ext)] {
+
+	ext = strings.ToLower(ext)
+	if !allowedExtensions[ext] {
 		return fmt.Errorf("file extension %s is not allowed", ext)
 	}
 	return nil
 }
 
+// Save stores a file in MinIO storage
 func (s *MinioStorage) Save(ctx context.Context, data []byte, ext string) (string, error) {
 	if err := s.validateFile(data, ext); err != nil {
 		return "", err
 	}
 
-	objectName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
-	contentType := mime.TypeByExtension(ext)
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
+	fileID := uuid.New().String()
+	key := fmt.Sprintf("%s/%s%s", time.Now().Format("2006/01/02"), fileID, ext)
 
-	opts := minio.PutObjectOptions{
-		ContentType: contentType,
-	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
-	_, err := s.client.PutObject(ctx, s.bucketName, objectName, bytes.NewReader(data), int64(len(data)), opts)
+	_, err := s.client.PutObject(ctx, s.bucketName, key, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{
+		ContentType: getContentType(ext),
+	})
+
 	if err != nil {
-		return "", fmt.Errorf("failed to save file: %w", err)
+		return "", fmt.Errorf("failed to upload file to MinIO: %w", err)
 	}
-
-	return objectName, nil
+	return key, nil
 }
 
+// Get retrieves a file from MinIO storage
 func (s *MinioStorage) Get(ctx context.Context, fileID string) ([]byte, string, error) {
-	obj, err := s.client.GetObject(ctx, s.bucketName, fileID, minio.GetObjectOptions{})
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to get file: %w", err)
-	}
-	defer obj.Close()
-
-	data, err := io.ReadAll(obj)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to read file: %w", err)
+	ext := strings.ToLower(filepath.Ext(fileID))
+	if !allowedExtensions[ext] {
+		return nil, "", fmt.Errorf("file extension %s is not allowed", ext)
 	}
 
-	ext := filepath.Ext(fileID)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	object, err := s.client.GetObject(ctx, s.bucketName, fileID, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get file from MinIO: %w", err)
+	}
+	defer object.Close()
+
+	data, err := io.ReadAll(object)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read file content: %w", err)
+	}
+
+	if len(data) > maxFileSize {
+		return nil, "", fmt.Errorf("file size exceeds maximum allowed size of %d bytes", maxFileSize)
+	}
+
 	return data, ext, nil
 }
 
+// Delete removes a file from MinIO storage
 func (s *MinioStorage) Delete(ctx context.Context, fileID string) error {
+	ext := strings.ToLower(filepath.Ext(fileID))
+	if !allowedExtensions[ext] {
+		return fmt.Errorf("file extension %s is not allowed", ext)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	err := s.client.RemoveObject(ctx, s.bucketName, fileID, minio.RemoveObjectOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to delete file: %w", err)
+		return fmt.Errorf("failed to delete file from MinIO: %w", err)
 	}
+
 	return nil
 }
 
@@ -109,4 +133,28 @@ func getContentType(ext string) string {
 		return "application/octet-stream"
 	}
 	return mimeType
+}
+
+// ListFiles returns a list of all files in the storage
+func (s *MinioStorage) ListFiles(ctx context.Context) ([]FileInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var files []FileInfo
+	opts := minio.ListObjectsOptions{
+		Recursive: true,
+	}
+
+	for object := range s.client.ListObjects(ctx, s.bucketName, opts) {
+		if object.Err != nil {
+			return nil, fmt.Errorf("failed to list objects: %w", object.Err)
+		}
+
+		files = append(files, FileInfo{
+			ID:        object.Key,
+			CreatedAt: object.LastModified,
+		})
+	}
+
+	return files, nil
 }

@@ -6,56 +6,56 @@
    - [x] Database setup
    - [x] Basic API server
    - [x] Authentication
-   - [x] Redis integration
 
 2. Email Processing
    - [x] IMAP connection
    - [x] Email parsing
-   - [x] Attachment handling with MinIO
-   - [x] Basic filtering
+   - [x] Attachment handling
+   - [ ] Email filtering
 
 3. NER Service
-   - [x] gRPC service implementation
-   - [x] Redis-based rate limiting
-   - [x] Health checks
-   - [ ] Vietnamese model optimization
+   - [x] Basic model setup
+   - [x] API endpoints
+   - [ ] Vietnamese model
+   - [ ] Custom training
 
 4. Calendar Integration
    - [x] Google Calendar API
-   - [ ] Two-way sync
-   - [x] Basic event creation
+   - [ ] Microsoft Calendar
+   - [ ] Event sync
+   - [ ] Notification
 
 ## Vấn Đề Đã Biết
 1. Performance
-   - NER service batch processing optimization
-   - Redis cache tuning
-   - gRPC connection pooling
+   - Email processing bottleneck
+   - NER service latency
+   - Database optimization needed
 
 2. Security
-   - OAuth token management
-   - Rate limiting configuration
-   - Input validation enhancement
+   - OAuth token refresh
+   - Rate limiting
+   - Input validation
 
 3. Reliability
-   - Graceful error handling
-   - Service recovery procedures
-   - Monitoring and alerting
+   - Error handling
+   - Service recovery
+   - Data backup
 
 ## Trọng Tâm Phát Triển
 1. Short Term
-   - Vietnamese NER model accuracy
-   - Calendar sync reliability
-   - Monitoring implementation
+   - Optimize email processing
+   - Improve NER accuracy
+   - Add more test coverage
 
 2. Medium Term
-   - Calendar service optimization
-   - Advanced email filtering
-   - Performance optimization
+   - Microsoft integration
+   - Mobile app support
+   - Analytics dashboard
 
 3. Long Term
    - Multi-tenant support
-   - AI-powered suggestions
-   - Mobile app integration
+   - AI improvements
+   - API marketplace
 
 ## Độ Phủ Testing
 1. Unit Tests
@@ -87,4 +87,4 @@
 3. Infrastructure
    - Resource usage
    - Database performance
-   - API latency
+   - API latency 

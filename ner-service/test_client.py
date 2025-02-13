@@ -37,7 +37,7 @@ async def test_extract_entities():
     test_cases = [
         # Tiếng Việt
         "Tôi có cuộc họp với anh Nam và chị Hương vào lúc 2 giờ chiều ngày mai tại văn phòng công ty ABC ở Hà Nội",
-        "Bộ trưởng Nguyễn Văn A đã có chuyến thăm chính thức tới Hà Nội vào tháng trước",
+        "Bộ trưởng Nguyễn Văn A đã có chuyến thăm chính thức tới Microsoft tại Singapore vào tháng trước",
         "Trường Đại học Bách Khoa Hà Nội tổ chức hội thảo về AI tại Việt Nam",
         
         # Tiếng Anh
@@ -85,4 +85,4 @@ async def test_extract_entities():
     await channel.close()
 
 if __name__ == "__main__":
-    asyncio.run(test_extract_entities())
+    asyncio.run(test_extract_entities()) 

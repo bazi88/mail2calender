@@ -10,8 +10,9 @@ import (
 // Storage defines the interface for file storage operations
 type Storage interface {
 	Save(ctx context.Context, data []byte, ext string) (string, error)
-	Get(ctx context.Context, fileID string) ([]byte, string, error)
-	Delete(ctx context.Context, fileID string) error
+	Get(ctx context.Context, id string) ([]byte, string, error)
+	Delete(ctx context.Context, id string) error
+	ListFiles(ctx context.Context) ([]FileInfo, error)
 }
 
 // MinioClientInterface defines the interface for minio client operations

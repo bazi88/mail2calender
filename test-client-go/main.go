@@ -63,7 +63,7 @@ func main() {
 	testCases := []string{
 		// Vietnamese
 		"Tôi có cuộc họp với anh Nam và chị Hương vào lúc 2 giờ chiều ngày mai tại văn phòng công ty ABC ở Hà Nội",
-		"Bộ trưởng Nguyễn Văn A đã có chuyến thăm chính thức tới Hà Nội vào tháng trước",
+		"Bộ trưởng Nguyễn Văn A đã có chuyến thăm chính thức tới Microsoft tại Singapore vào tháng trước",
 		"Trường Đại học Bách Khoa Hà Nội tổ chức hội thảo về AI tại Việt Nam",
 
 		// English

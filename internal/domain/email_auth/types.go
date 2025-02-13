@@ -13,7 +13,7 @@ const (
 	Outlook EmailProvider = "outlook"
 )
 
-// OAuthConfig contains OAuth2 configuration
+// OAuthConfig contains OAuth configuration for an email provider
 type OAuthConfig struct {
 	ClientID     string
 	ClientSecret string
@@ -21,7 +21,7 @@ type OAuthConfig struct {
 	Scopes       []string
 }
 
-// EmailToken represents OAuth2 token information
+// EmailToken represents an OAuth token for email access
 type EmailToken struct {
 	AccessToken  string
 	TokenType    string
@@ -30,17 +30,10 @@ type EmailToken struct {
 	Provider     EmailProvider
 }
 
-// EmailAuthService defines the interface for email authentication
+// EmailAuthService defines the interface for email authentication operations
 type EmailAuthService interface {
-	// GetAuthURL generates the OAuth2 authorization URL for the specified provider
 	GetAuthURL(ctx context.Context, provider EmailProvider) (string, error)
-
-	// ExchangeCode exchanges the authorization code for access token
 	ExchangeCode(ctx context.Context, provider EmailProvider, code string) (*EmailToken, error)
-
-	// RefreshToken refreshes the access token using refresh token
 	RefreshToken(ctx context.Context, token *EmailToken) (*EmailToken, error)
-
-	// RevokeToken revokes the access token
 	RevokeToken(ctx context.Context, token *EmailToken) error
 }
