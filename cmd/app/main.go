@@ -14,6 +14,7 @@
 // @BasePath /api/v1
 // @schemes http
 
+// Package main là entry point của ứng dụng
 package main
 
 import (

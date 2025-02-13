@@ -1,3 +1,4 @@
+// Package config cung cấp các cấu hình cho ứng dụng
 package config
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Config chứa tất cả các cấu hình của ứng dụng
 type Config struct {
 	API struct {
 		Name       string `envconfig:"API_NAME" default:"go8"`
@@ -81,6 +83,7 @@ type Config struct {
 	}
 }
 
+// Load tải cấu hình từ file và environment variables
 func Load() *Config {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {

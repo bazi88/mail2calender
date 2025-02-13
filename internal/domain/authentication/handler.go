@@ -1,3 +1,4 @@
+// Package authentication xử lý xác thực người dùng
 package authentication
 
 import (
@@ -18,16 +19,20 @@ const (
 	minPasswordLength = 13
 )
 
+// ErrEmailRequired được trả về khi email không được cung cấp
+var ErrEmailRequired = errors.New("email is required")
+
 var (
-	ErrEmailRequired  = errors.New("email is required")
 	ErrPasswordLength = fmt.Errorf("password must be at least %d characters", minPasswordLength)
 )
 
+// Handler xử lý các request liên quan đến xác thực
 type Handler struct {
 	repo    Repo
 	session *scs.SessionManager
 }
 
+// Register xử lý đăng ký tài khoản mới
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	err := request.DecodeJSON(w, r, &req)
@@ -60,6 +65,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	respond.Status(w, http.StatusCreated)
 }
 
+// Login xử lý đăng nhập
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	err := request.DecodeJSON(w, r, &req)
@@ -101,16 +107,19 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	respond.Status(w, http.StatusOK)
 }
 
+// Protected kiểm tra xem request có được xác thực hay không
 func (h *Handler) Protected(w http.ResponseWriter, _ *http.Request) {
 	respond.Json(w, http.StatusOK, map[string]string{"success": "yup!"})
 }
 
+// Me trả về thông tin người dùng hiện tại
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	userID := h.session.Get(r.Context(), string(middleware.KeyID))
 
 	respond.Json(w, http.StatusOK, map[string]any{"user_id": userID})
 }
 
+// Logout xử lý đăng xuất
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	err := h.session.Destroy(r.Context())
 	if err != nil {
@@ -119,6 +128,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ForceLogout buộc đăng xuất người dùng
 func (h *Handler) ForceLogout(w http.ResponseWriter, r *http.Request) {
 	// Authorization is needed to ensure that only super admin can force delete
 	currUser := h.session.Get(r.Context(), string(middleware.KeyID))
@@ -166,6 +176,7 @@ func (h *Handler) Csrf(w http.ResponseWriter, r *http.Request) {
 	respond.Json(w, http.StatusOK, &RespondCsrf{CsrfToken: token})
 }
 
+// NewHandler tạo một handler mới
 func NewHandler(session *scs.SessionManager, repo Repo) *Handler {
 	return &Handler{
 		repo:    repo,

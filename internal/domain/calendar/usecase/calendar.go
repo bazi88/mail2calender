@@ -1,3 +1,4 @@
+// Package usecase chứa logic xử lý nghiệp vụ của calendar
 package usecase
 
 import (
@@ -17,13 +18,14 @@ type calendarUseCase struct {
 	nerClient *nerClient.NERClient
 }
 
+// NewCalendarUseCase tạo một usecase mới cho calendar
 func NewCalendarUseCase(nerClient *nerClient.NERClient) CalendarUseCase {
 	return &calendarUseCase{
 		nerClient: nerClient,
 	}
 }
 
-func (u *calendarUseCase) CreateEvent(ctx context.Context, event *calendarPb.Event, userID string) (*calendarPb.Event, error) {
+func (u *calendarUseCase) CreateEvent(ctx context.Context, event *calendarPb.Event, _ string) (*calendarPb.Event, error) {
 	if err := u.validateEvent(event); err != nil {
 		return nil, err
 	}
@@ -47,7 +49,7 @@ func (u *calendarUseCase) CreateEvent(ctx context.Context, event *calendarPb.Eve
 	return event, nil
 }
 
-func (u *calendarUseCase) UpdateEvent(ctx context.Context, event *calendarPb.Event, userID string) (*calendarPb.Event, error) {
+func (u *calendarUseCase) UpdateEvent(_ context.Context, event *calendarPb.Event, userID string) (*calendarPb.Event, error) {
 	if err := u.validateEvent(event); err != nil {
 		return nil, err
 	}
@@ -61,7 +63,7 @@ func (u *calendarUseCase) UpdateEvent(ctx context.Context, event *calendarPb.Eve
 	return event, nil
 }
 
-func (u *calendarUseCase) DeleteEvent(ctx context.Context, eventID string, userID string) error {
+func (u *calendarUseCase) DeleteEvent(_ context.Context, eventID string, userID string) error {
 	if eventID == "" {
 		return status.Error(codes.InvalidArgument, "event ID is required")
 	}
@@ -70,7 +72,7 @@ func (u *calendarUseCase) DeleteEvent(ctx context.Context, eventID string, userI
 	return nil
 }
 
-func (u *calendarUseCase) GetEvent(ctx context.Context, eventID string, userID string) (*calendarPb.Event, error) {
+func (u *calendarUseCase) GetEvent(_ context.Context, eventID string, userID string) (*calendarPb.Event, error) {
 	if eventID == "" {
 		return nil, status.Error(codes.InvalidArgument, "event ID is required")
 	}
@@ -87,7 +89,7 @@ func (u *calendarUseCase) GetEvent(ctx context.Context, eventID string, userID s
 	}, nil
 }
 
-func (u *calendarUseCase) ListEvents(ctx context.Context, userID string, startTime int64, endTime int64, calendarID string, pageSize int32, pageToken string) ([]*calendarPb.Event, string, error) {
+func (u *calendarUseCase) ListEvents(_ context.Context, userID string, startTime int64, endTime int64, calendarID string, pageSize int32, pageToken string) ([]*calendarPb.Event, string, error) {
 	if userID == "" {
 		return nil, "", status.Error(codes.InvalidArgument, "user ID is required")
 	}

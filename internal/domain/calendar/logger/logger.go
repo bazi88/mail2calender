@@ -231,3 +231,30 @@ func (l *Logger) Close() error {
 	_ = l.zap.Sync() // Ignore sync errors as they're not relevant for cleanup
 	return nil
 }
+
+func (l *Logger) LogRequest(requestBody interface{}, responseBody interface{}, err error) {
+	fields := Fields{
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	if requestBody != nil {
+		reqJSON, jsonErr := json.Marshal(requestBody)
+		if jsonErr == nil {
+			fields["request"] = string(reqJSON)
+		}
+	}
+
+	if responseBody != nil {
+		respJSON, jsonErr := json.Marshal(responseBody)
+		if jsonErr == nil {
+			fields["response"] = string(respJSON)
+		}
+	}
+
+	if err != nil {
+		fields["error"] = err.Error()
+		l.WithFields(fields).Error("Request failed")
+	} else {
+		l.WithFields(fields).Info("Request completed")
+	}
+}

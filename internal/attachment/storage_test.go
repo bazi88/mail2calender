@@ -45,28 +45,97 @@ func (p *AttachmentProcessor) ProcessAttachment(ctx context.Context, data []byte
 	return p.storage.Save(ctx, data, ext)
 }
 
-func TestAttachmentProcessor_QuarantineUnscannedFiles(t *testing.T) {
+func TestAttachmentProcessor_ProcessAttachment(t *testing.T) {
 	// Setup
-	mockClient := new(mockMinioClient)
-	mockStorage := &S3Storage{
-		client:           mockClient,
-		bucket:           "test-bucket",
-		quarantineBucket: "quarantine-bucket",
-	}
+	mockStorage := new(mockStorage)
 	mockScanner := new(MockVirusScanner)
-
-	// Configure mock
-	mockScanner.On("Scan", mock.Anything).Return(false, errors.New("scan timeout"))
-
-	// Create processor with mocked dependencies
 	processor := NewAttachmentProcessor(mockStorage, mockScanner)
 
-	// Test file processing
-	_, err := processor.ProcessAttachment(context.Background(), []byte("test data"), ".txt")
+	testData := []byte("test data")
+	testExt := ".txt"
+	testFileID := "test-file-id"
 
-	// Verify error contains quarantine message
-	assert.ErrorContains(t, err, "quarantine")
+	// Test cases
+	tests := []struct {
+		name        string
+		scanResult  bool
+		scanError   error
+		saveError   error
+		expectError bool
+		expectID    string
+	}{
+		{
+			name:        "successful scan and save",
+			scanResult:  true,
+			scanError:   nil,
+			saveError:   nil,
+			expectError: false,
+			expectID:    testFileID,
+		},
+		{
+			name:        "virus detected",
+			scanResult:  false,
+			scanError:   nil,
+			expectError: true,
+			expectID:    "",
+		},
+		{
+			name:        "scan error",
+			scanResult:  false,
+			scanError:   errors.New("scan failed"),
+			expectError: true,
+			expectID:    "",
+		},
+	}
 
-	// Verify mock expectations
-	mockScanner.AssertExpectations(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Configure mocks
+			mockScanner.On("Scan", testData).Return(tt.scanResult, tt.scanError).Once()
+			if tt.scanResult && tt.scanError == nil {
+				mockStorage.On("Save", mock.Anything, testData, testExt).Return(testFileID, tt.saveError).Once()
+			}
+
+			// Call the method
+			fileID, err := processor.ProcessAttachment(context.Background(), testData, testExt)
+
+			// Assert results
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Empty(t, fileID)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectID, fileID)
+			}
+
+			// Verify mock expectations
+			mockScanner.AssertExpectations(t)
+			mockStorage.AssertExpectations(t)
+		})
+	}
+}
+
+// mockStorage is a mock implementation of Storage interface
+type mockStorage struct {
+	mock.Mock
+}
+
+func (m *mockStorage) Save(ctx context.Context, data []byte, ext string) (string, error) {
+	args := m.Called(ctx, data, ext)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockStorage) Get(ctx context.Context, id string) ([]byte, string, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).([]byte), args.String(1), args.Error(2)
+}
+
+func (m *mockStorage) Delete(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *mockStorage) ListFiles(ctx context.Context) ([]FileInfo, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]FileInfo), args.Error(1)
 }

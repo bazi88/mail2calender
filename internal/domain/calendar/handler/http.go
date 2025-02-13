@@ -8,15 +8,20 @@ import (
 	"mail2calendar/internal/domain/calendar/service"
 )
 
-type HttpCalendarHandler struct {
+// HTTPCalendarHandler xử lý các yêu cầu HTTP cho calendar service
+type HTTPCalendarHandler struct {
 	svc service.CalendarService
 }
 
-func NewHttpCalendarHandler(svc service.CalendarService) *HttpCalendarHandler {
-	return &HttpCalendarHandler{svc: svc}
+// NewHTTPCalendarHandler tạo một HTTPCalendarHandler mới
+func NewHTTPCalendarHandler(svc service.CalendarService) *HTTPCalendarHandler {
+	return &HTTPCalendarHandler{
+		svc: svc,
+	}
 }
 
-func (h *HttpCalendarHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
+// CreateEvent xử lý yêu cầu tạo event mới
+func (h *HTTPCalendarHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req proto.NewCreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -35,7 +40,8 @@ func (h *HttpCalendarHandler) CreateEvent(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *HttpCalendarHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
+// GetEvent xử lý yêu cầu lấy thông tin event
+func (h *HTTPCalendarHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 	eventID := r.URL.Query().Get("event_id")
 
 	resp, err := h.svc.GetEvent(r.Context(), &proto.GetEventRequestV2{EventID: eventID})

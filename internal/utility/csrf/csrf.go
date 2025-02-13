@@ -9,9 +9,11 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
-// ValidToken Checks if CSRF token is valid
+// Package csrf cung cấp các chức năng xử lý CSRF token
+
+// ValidToken kiểm tra xem CSRF token có hợp lệ hay không
 func ValidToken(ctx context.Context, db *sql.DB, token string) bool {
-	hash, err := sum(token)
+	tokenHash, err := sum(token)
 	if err != nil {
 		return false
 	}
@@ -22,25 +24,24 @@ func ValidToken(ctx context.Context, db *sql.DB, token string) bool {
 				SELECT token FROM sessions 
 				WHERE token = $1 
 				  AND current_timestamp < expiry
-			) `, hash)
-	err = row.Scan(&exists)
-	if err != nil {
+			) `, tokenHash)
+	if err = row.Scan(&exists); err != nil {
 		return false
 	}
 	return exists
 }
 
-// ValidAndDeleteToken deletes the token from the store if and only if token is valid.
-// Useful for one-time token use.
+// ValidAndDeleteToken xóa token khỏi store nếu token hợp lệ.
+// Hữu ích cho việc sử dụng token một lần.
 func ValidAndDeleteToken(ctx context.Context, db *sql.DB, token string) error {
-	hash, err := sum(token)
+	tokenHash, err := sum(token)
 	if err != nil {
 		return nil
 	}
 
 	res, err := db.ExecContext(ctx, `
 		DELETE FROM sessions WHERE token = $1 AND current_timestamp < expiry
-	`, hash)
+	`, tokenHash)
 	if err != nil {
 		return err
 	}
@@ -56,15 +57,12 @@ func ValidAndDeleteToken(ctx context.Context, db *sql.DB, token string) error {
 	return nil
 }
 
+// sum tính toán hash của token
 func sum(token string) (string, error) {
 	h := xxhash.New()
-	_, err := h.Write([]byte(token))
-	if err != nil {
-
+	if _, err := h.Write([]byte(token)); err != nil {
 		return "", err
 	}
 	sum := h.Sum(nil)
-	str := hex.EncodeToString(sum)
-
-	return str, err
+	return hex.EncodeToString(sum), nil
 }

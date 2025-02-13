@@ -1,0 +1,27 @@
+<invoke name="run_terminal_cmd">
+<parameter name="command">go vet ./...</parameter>
+<parameter name="explanation">Kiểm tra lại kết quả go vet</parameter>
+<parameter name="is_background">false</parameter>
+<parameter name="require_user_approval">true</parameter>
+</invoke>
+
+<invoke name="run_terminal_cmd">
+<parameter name="command">golangci-lint run</parameter>
+<parameter name="explanation">Kiểm tra lại kết quả golangci-lint</parameter>
+<parameter name="is_background">false</parameter>
+<parameter name="require_user_approval">true</parameter>
+</invoke>
+
+<invoke name="run_terminal_cmd">
+<parameter name="command">go test -v -race -coverprofile=coverage.out ./...</parameter>
+<parameter name="explanation">Kiểm tra lại kết quả tests và coverage</parameter>
+<parameter name="is_background">false</parameter>
+<parameter name="require_user_approval">true</parameter>
+</invoke>
+
+<invoke name="run_terminal_cmd">
+<parameter name="command">go tool cover -html=coverage.out -o coverage.html</parameter>
+<parameter name="explanation">Tạo báo cáo coverage dạng HTML</parameter>
+<parameter name="is_background">false</parameter>
+<parameter name="require_user_approval">true</parameter>
+</invoke> 

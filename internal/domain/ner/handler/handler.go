@@ -41,6 +41,12 @@ func (h *Handler) ExtractEntities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate request
+	if req.Text == "" {
+		http.Error(w, "Text field is required", http.StatusBadRequest)
+		return
+	}
+
 	entities, err := h.useCase.ExtractEntities(r.Context(), req.Text)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -8,13 +8,13 @@ import (
 )
 
 type Session struct {
-	Name     string          `split_words:"true" default:"session"`
-	Path     string          `default:"/"`
-	Domain   string          `default:""`
+	Name     string          `envconfig:"SESSION_NAME" default:"session"`
+	Path     string          `envconfig:"SESSION_PATH" default:"/"`
+	Domain   string          `envconfig:"SESSION_DOMAIN"`
 	Secret   string          `required:"false"`
-	Duration time.Duration   `default:"24h"`
-	HttpOnly bool            `split_words:"true" default:"true"`
-	Secure   bool            `default:"true"`
+	Duration time.Duration   `envconfig:"SESSION_DURATION" default:"24h"`
+	HTTPOnly bool            `envconfig:"SESSION_HTTP_ONLY" default:"true"`
+	Secure   bool            `envconfig:"SESSION_SECURE" default:"true"`
 	SameSite SameSiteDecoder `split_words:"true" default:"lax"`
 }
 

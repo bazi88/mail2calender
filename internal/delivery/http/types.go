@@ -1,3 +1,4 @@
+// Package http cung cấp các handlers và types cho HTTP delivery layer
 package http
 
 import "context"

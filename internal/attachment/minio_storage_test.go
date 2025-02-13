@@ -343,32 +343,78 @@ func TestGetContentType(t *testing.T) {
 }
 
 func TestMinioStorage_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
+	// Skip test if MinIO server is not running
+	client, err := minio.New("localhost:9000", &minio.Options{
+		Secure: false,
+	})
+	if err != nil {
+		t.Skip("MinIO server is not running")
+		return
 	}
 
-	client, bucketName, cleanup := setupTestMinio(t)
-	defer cleanup()
+	// Try to connect to MinIO server
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
+	_, err = client.ListBuckets(ctx)
+	if err != nil {
+		t.Skip("Could not connect to MinIO server:", err)
+		return
+	}
+
+	// Rest of the test...
+	bucketName := "test-bucket"
+
+	// Check if bucket exists
+	exists, err := client.BucketExists(ctx, bucketName)
+	if err != nil {
+		t.Fatalf("Error checking bucket existence: %v", err)
+	}
+
+	if !exists {
+		err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			t.Fatalf("Error creating bucket: %v", err)
+		}
+	}
+
+	// Create storage instance
 	storage := NewMinioStorage(client, bucketName)
 
 	// Test Save
-	data := []byte("test data")
-	key, err := storage.Save(context.Background(), data, ".txt")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, key)
+	testData := []byte("test data")
+	fileID, err := storage.Save(ctx, testData, ".txt")
+	if err != nil {
+		t.Fatalf("Error saving file: %v", err)
+	}
 
 	// Test Get
-	retrievedData, ext, err := storage.Get(context.Background(), key)
-	assert.NoError(t, err)
-	assert.Equal(t, data, retrievedData)
-	assert.Equal(t, ".txt", ext)
+	retrievedData, ext, err := storage.Get(ctx, fileID)
+	if err != nil {
+		t.Fatalf("Error getting file: %v", err)
+	}
+	if string(retrievedData) != string(testData) {
+		t.Errorf("Retrieved data does not match: got %s, want %s", retrievedData, testData)
+	}
+	if ext != ".txt" {
+		t.Errorf("Retrieved extension does not match: got %s, want .txt", ext)
+	}
 
 	// Test Delete
-	err = storage.Delete(context.Background(), key)
-	assert.NoError(t, err)
+	err = storage.Delete(ctx, fileID)
+	if err != nil {
+		t.Fatalf("Error deleting file: %v", err)
+	}
 
 	// Verify file is deleted
-	_, _, err = storage.Get(context.Background(), key)
-	assert.Error(t, err)
+	_, _, err = storage.Get(ctx, fileID)
+	if err == nil {
+		t.Error("Expected error getting deleted file")
+	}
+
+	// Clean up bucket
+	err = client.RemoveBucket(ctx, bucketName)
+	if err != nil {
+		t.Fatalf("Error removing bucket: %v", err)
+	}
 }

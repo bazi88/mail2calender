@@ -8,17 +8,20 @@ import (
 	"mail2calendar/internal/utility/message"
 )
 
+// Standard định nghĩa cấu trúc phản hồi chuẩn
 type Standard struct {
 	Data interface{} `json:"data"`
 	Meta Meta        `json:"meta,omitempty"`
 }
 
+// Meta chứa thông tin metadata của phản hồi
 type Meta struct {
 	Size  int `json:"size"`
 	Total int `json:"total"`
 }
 
-func Json(w http.ResponseWriter, statusCode int, payload interface{}) {
+// JSON gửi phản hồi dạng JSON
+func JSON(w http.ResponseWriter, statusCode int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 

@@ -5,19 +5,16 @@ import (
 	"time"
 )
 
+// Parse parses a date string into a time.Time value
 func Parse(date string, format ...string) time.Time {
-	if len(format) == 0 {
-		if len(date) == 10 {
-			return parseISO8601(date)
-		} else {
-			return parse3339(date)
-		}
-	} else if format[0] == time.RFC3339 {
+	switch {
+	case len(format) == 0:
 		return parse3339(date)
-	} else if len(format) == 1 {
-		return parse3339(format[0])
+	case len(format) == 1:
+		return parseWithFormat(date, format[0])
+	default:
+		return parse3339(date)
 	}
-	panic("time format not supported")
 }
 
 func parseISO8601(iso8601 string) time.Time {
@@ -34,4 +31,11 @@ func parse3339(rfc3339 string) time.Time {
 		log.Panic(err)
 	}
 	return timeWant
+}
+
+func parseWithFormat(date string, format string) time.Time {
+	if format == time.RFC3339 {
+		return parse3339(date)
+	}
+	panic("time format not supported")
 }

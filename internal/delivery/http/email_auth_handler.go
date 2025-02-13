@@ -5,16 +5,19 @@ import (
 	"net/http"
 )
 
+// EmailAuthHandler xử lý các yêu cầu xác thực email
 type EmailAuthHandler struct {
 	emailAuthService EmailAuthService
 }
 
+// NewEmailAuthHandler tạo một EmailAuthHandler mới
 func NewEmailAuthHandler(emailAuthService EmailAuthService) *EmailAuthHandler {
 	return &EmailAuthHandler{
 		emailAuthService: emailAuthService,
 	}
 }
 
+// HandleCallback xử lý callback từ OAuth provider
 func (h *EmailAuthHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
@@ -82,5 +85,8 @@ func (h *EmailAuthHandler) HandleCallback(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	tmpl.Execute(w, nil)
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

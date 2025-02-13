@@ -1,3 +1,4 @@
+// Package config cung cấp các cấu hình cho ứng dụng
 package config
 
 import (
@@ -6,7 +7,8 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type Api struct {
+// API chứa cấu hình cho API server
+type API struct {
 	Name              string        `default:"go8_api"`
 	Host              string        `default:"0.0.0.0"`
 	Port              string        `default:"3080"`
@@ -17,8 +19,9 @@ type Api struct {
 	RunSwagger bool `split_words:"true" default:"true"`
 }
 
-func API() Api {
-	var api Api
+// API trả về cấu hình API mặc định
+func API() API {
+	var api API
 	envconfig.MustProcess("API", &api)
 
 	return api

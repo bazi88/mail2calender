@@ -78,7 +78,11 @@ func (s *S3Storage) Get(ctx context.Context, id string) ([]byte, string, error) 
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get file: %w", err)
 	}
-	defer obj.Close()
+	defer func() {
+		if cerr := obj.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close object: %v", cerr)
+		}
+	}()
 
 	data, err := io.ReadAll(obj)
 	if err != nil {
