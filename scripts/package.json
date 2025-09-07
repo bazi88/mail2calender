@@ -1,0 +1,28 @@
+{
+  "name": "mail2calendar-crawler",
+  "version": "1.0.0",
+  "description": "Web crawler for extracting schema information from web pages",
+  "main": "details_crawler.js",
+  "scripts": {
+    "install-deps": "npm install",
+    "crawl": "node details_crawler.js",
+    "test": "node test_crawler.js"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "cheerio": "^1.1.2",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.53.0"
+  },
+  "keywords": [
+    "web-crawler",
+    "schema-extraction",
+    "playwright",
+    "cheerio",
+    "scraping"
+  ],
+  "author": "mail2calendar team",
+  "license": "MIT"
+}
